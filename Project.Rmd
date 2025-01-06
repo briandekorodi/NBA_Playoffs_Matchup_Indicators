@@ -346,10 +346,6 @@ return(df)
 rm(Seasons_Opp_shooting_post_2002, Seasons_Opp_shooting_pre_2002, df, col_names)
 ```
 
-```{r}
-rm(col_names_Opp_per100poss, col_names_Opp_shooting_post_2002, col_names_Opp_shooting_pre_2002, col_names_Team_advanced, col_names_Team_per100poss, col_names_Team_shooting_post_2002, col_names_Team_shooting_pre_2002, name, team_advanced_rm_row_16_17, team_per100poss_rm_row_21, team_shooting_rm_row_16_17, year)
-```
-
 #### Joining the datasets from each season by team name
 
 ```{r, message=FALSE, warning=FALSE}
@@ -359,12 +355,13 @@ clean_column_names <- function(lst) {
     return(df)
   })
 }
-
 Seasons_Team_per100poss <- clean_column_names(Seasons_Team_per100poss)
 Seasons_Opp_per100poss <- clean_column_names(Seasons_Opp_per100poss)
 Seasons_Team_advanced <- clean_column_names(Seasons_Team_advanced)
 Seasons_Team_shooting <- clean_column_names(Seasons_Team_shooting)
 Seasons_Opp_shooting <- clean_column_names(Seasons_Opp_shooting)
+
+all_team_names <- unique(unlist(lapply(Seasons_Team_per100poss, function(df) df$Team)))
 
 Seasons <- list()
 
@@ -387,7 +384,7 @@ for (year in 1997:2024) {
            "opp2P%" = "opp2P..x",
            "opp3P%" = "opp3P..x",
            "oppFT%" = "oppFT.",
-           "oppORBr" = "oppORBr.x",
+           "DRB%" = "DRB.",
            "DRtg" = "DRtg.x",
            "%3PA" = ".3PA",
            "TS%" = "TS.",
@@ -396,7 +393,6 @@ for (year in 1997:2024) {
            "ORB%" = "ORB.",
            "oppeFG%" = "oppeFG.",
            "oppTOV%" = "oppTOV.",
-           "DRB%" = "oppORBr.y",
            "2P%FGA" = "2P.FGA",
            "0_3%FGA" = "0_3.FGA",
            "3_10%FGA" = "3_10.FGA",
@@ -433,33 +429,18 @@ for (year in 1997:2024) {
            -contains("Rank.x"),
            -contains("ORtg.y"), 
            -contains("DRtg.y"),
-           -contains("Col18"),
-           -contains("Col23"),
-           -contains("Col28"),
-           -contains("Rank.y"),
            -contains("Games_Played.x.x"), 
            -contains("Minutes_Played.x.x"),
            -contains("FG..y"), 
-           -contains("Col7.x"), 
-           -contains("Col14.x"), 
            -contains("2P..y"), 
-           -contains("3P..y"), 
-           -contains("Col21.x"), 
-           -contains("Col24.x"), 
-           -contains("Col27.x"), 
-           -contains("Col30"),
+           -contains("3P..y"),
            -contains("Games_Played.y.y"), 
            -contains("Minutes_Played.y.y"), 
-           -contains("Rank"), 
-           -contains("oppFG..y"), 
-           -contains("Col7.y"), 
-           -contains("Col14.y"), 
-           -contains("Col21.y"), 
-           -contains("Col24.y"), 
-           -contains("Col27.y")) %>%
+           -contains("oppFG..y")) %>%
     mutate(Attendance = gsub(",", "", Attendance),
            Attendance_per_Game = gsub(",", "", Attendance_per_Game)) %>%
-    mutate(across(.cols = -c(Arena, Team), .fns = as.numeric))
+    mutate(across(.cols = -c(Arena, Team), .fns = as.numeric)) %>%
+    right_join(data.frame(Team = all_team_names), by = "Team")
 }
 ```
 
@@ -559,6 +540,10 @@ Playoffs_FourFactors <- lapply(names(Playoffs_FourFactors), function(name) {
   return(df)
   }) %>% 
 setNames(names(Playoffs_FourFactors))
+```
+
+```{r}
+rm(col_names_Opp_per100poss, col_names_Opp_shooting_post_2002, col_names_Opp_shooting_pre_2002, col_names_Team_advanced, col_names_Team_per100poss, col_names_Team_shooting_post_2002, col_names_Team_shooting_pre_2002, name, team_advanced_rm_row_16_17, team_per100poss_rm_row_21, team_shooting_rm_row_16_17, year, team_name_mapping, file, all_team_names, Playoff_series, Playoffs_file, Playoffs_folder, Playoffs_year_folder, raw_html, Seasons_file, Seasons_folder)
 ```
 
 ### Analysis
