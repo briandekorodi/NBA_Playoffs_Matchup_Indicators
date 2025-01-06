@@ -1,0 +1,756 @@
+---
+title: "Project"
+author: "Brian de Korodi"
+date: "2024-12-17"
+output: pdf_document
+---
+
+```{r, message=FALSE, warning=FALSE}
+rm(list = ls())
+```
+
+### Packages
+
+```{r, message=FALSE, warning=FALSE}
+#install.packages("stringr")
+#install.packages("dplyr")
+#install.packages("httr")
+#install.packages("rvest")
+#install.packages("ggplot2")
+#install.packages("tidyr")
+#install.packages("tidyverse")
+library(stringr)
+library(dplyr)
+library(httr)
+library(rvest)
+library(ggplot2)
+library(tidyr)
+library(tidyverse)
+library(purrr)
+
+```
+
+### Extracting data
+
+#### Seasons - Team per 100 possessions
+
+```{r, message=FALSE, warning=FALSE}
+Seasons_folder <- "/Users/bdekorodi/Desktop/Project/Project_data/Seasons"
+Seasons_Team_per100poss <- list()
+for (year in 1997:2024) {
+  Seasons_file <- file.path(Seasons_folder, paste0("Season_", year, ".html"))
+  tryCatch({
+    Seasons_Team_per100poss[[paste0("team_per100poss_", year)]] <- read_html(Seasons_file) %>%
+      html_nodes(xpath = '//*[@id="per_poss-team"]') %>%
+      html_table(header=TRUE) %>%
+      .[[1]] %>%
+      mutate(Year = year)
+  })
+}
+col_names_Team_per100poss <- c("Team", "Games_Played", "Minutes_Played", "FGMr", "FGAr", "FG%","3PMr", "3PAr", "3P%", "2PMr", "2PAr", "2P%", "FTMr", "FTAr", "FT%", "ORBr", "DRBr", "TRBr","ASTr", "STLr", "BLKr", "TOVr", "PFr", "ORtg", "Year")
+Seasons_Team_per100poss <- lapply(Seasons_Team_per100poss, function(df) {
+  df <- df[, -1, drop = FALSE]
+  colnames(df) <- col_names_Team_per100poss[seq_len(ncol(df))]
+    if ("Team" %in% colnames(df)) {
+    df$Team <- str_remove(df$Team, "\\*$")
+    df$Team <- str_replace_all(df$Team, c(
+      "New Jersey Nets" = "Brooklyn Nets",
+      "Seattle SuperSonics" = "Oklahoma City Thunder",
+      "Vancouver Grizzlies" = "Memphis Grizzlies",
+      "Washington Bullets" = "Washington Wizards",
+      "New Orleans Hornets" = "New Orleans Pelicans",
+      "New Orleans/Oklahoma City Hornets" = "New Orleans Pelicans",
+      "Charlotte Bobcats" = "Charlotte Hornets"
+    ))
+  }
+  return(df)
+})
+team_per100poss_rm_col_21 <- c("team_per100poss_2005", "team_per100poss_2006", "team_per100poss_2007", "team_per100poss_2008", "team_per100poss_2009", "team_per100poss_2010", "team_per100poss_2011", "team_per100poss_2012", "team_per100poss_2013", "team_per100poss_2014", "team_per100poss_2015", "team_per100poss_2016", "team_per100poss_2017", "team_per100poss_2018", "team_per100poss_2019", "team_per100poss_2020", "team_per100poss_2021", "team_per100poss_2022", "team_per100poss_2023", "team_per100poss_2024")
+
+for (name in team_per100poss_rm_col_21) {
+  Seasons_Team_per100poss[[name]] <- Seasons_Team_per100poss[[name]][-c(21), ]
+}
+```
+
+#### Seasons - Opponent per 100 possessions
+
+```{r, message=FALSE, warning=FALSE}
+Seasons_folder <- "/Users/bdekorodi/Desktop/Project/Project_data/Seasons"
+Seasons_Opp_per100poss <- list()
+for (year in 1997:2024) {
+  Seasons_file <- file.path(Seasons_folder, paste0("Season_", year, ".html"))
+  tryCatch({
+    Seasons_Opp_per100poss[[paste0("opp_per100poss_", year)]] <- read_html(Seasons_file) %>%
+      html_nodes(xpath = '//*[@id="per_poss-opponent"]') %>%
+      html_table(header=TRUE) %>%
+      .[[1]] %>%
+      mutate(Year = year)
+  })
+}
+col_names_Opp_per100poss <- c("Team", "Games_Played", "Minutes_Played", "oppFGMr", "oppFGAr", "oppFG%","opp3PMr", "opp3PAr", "opp3P%", "opp2PMr", "opp2PAr", "opp2P%", "oppFTMr", "oppFTAr", "oppFT%", "oppORBr", "oppDRBr", "oppTRBr","oppASTr", "oppSTLr", "oppBLKr", "oppTOVr", "oppPFr", "DRtg", "Year")
+Seasons_Opp_per100poss <- lapply(Seasons_Opp_per100poss, function(df) {
+  df <- df[, -1, drop = FALSE]
+  colnames(df) <- col_names_Opp_per100poss[seq_len(ncol(df))]
+    if ("Team" %in% colnames(df)) {
+    df$Team <- str_remove(df$Team, "\\*$")
+    df$Team <- str_replace_all(df$Team, c(
+      "New Jersey Nets" = "Brooklyn Nets",
+      "Seattle SuperSonics" = "Oklahoma City Thunder",
+      "Vancouver Grizzlies" = "Memphis Grizzlies",
+      "Washington Bullets" = "Washington Wizards",
+      "New Orleans Hornets" = "New Orleans Pelicans",
+      "New Orleans/Oklahoma City Hornets" = "New Orleans Pelicans",
+      "Charlotte Bobcats" = "Charlotte Hornets"
+    ))
+  }
+  return(df)
+})
+```
+
+#### Seasons - Team advanced
+
+```{r, message=FALSE, warning=FALSE}
+Seasons_folder <- "/Users/bdekorodi/Desktop/Project/Project_data/Seasons"
+Seasons_Team_advanced <- list()
+
+for (year in 1997:2024) {
+  Seasons_file <- file.path(Seasons_folder, paste0("Season_", year, ".html"))
+  
+  tryCatch({
+    Seasons_Team_advanced[[paste0("team_advanced_", year)]] <- read_html(Seasons_file) %>%
+      html_nodes(xpath = '//*[@id="advanced-team"]') %>%
+      html_table(fill = TRUE) %>%
+      .[[1]]
+    col_names <- Seasons_Team_advanced[[paste0("team_advanced_", year)]][1, ]
+    Seasons_Team_advanced[[paste0("team_advanced_", year)]] <- Seasons_Team_advanced[[paste0("team_advanced_", year)]][-1, ]
+    col_names <- ifelse(is.na(col_names) | col_names == "", 
+                        paste0("Col", seq_along(col_names)), 
+                        col_names)
+    colnames(Seasons_Team_advanced[[paste0("team_advanced_", year)]]) <- col_names
+  })
+}
+
+col_names_Team_advanced <- c("Rank", "Team", "Average_age", "Wins", "Losses", "Expected_wins", "Expected_Losses", "MOV", "SOS", "SRS", "ORtg", "DRtg", "NRtg", "Pace", "FTA_per_FGA", "%3PA", "TS%", "Col18", "eFG%", "TOV%","ORB%", "FT_per_FGA", "Col23", "oppeFG%", "oppTOV%", "DRB%", "oppFT_per_FGA", "Col28", "Arena", "Attendance", "Attendance_per_Game")
+Seasons_Team_advanced <- lapply(Seasons_Team_advanced, function(df) {
+  colnames(df) <- col_names_Team_advanced[seq_len(ncol(df))]
+    if ("Team" %in% colnames(df)) {
+    df$Team <- str_remove(df$Team, "\\*$")
+    df$Team <- str_replace_all(df$Team, c(
+      "New Jersey Nets" = "Brooklyn Nets",
+      "Seattle SuperSonics" = "Oklahoma City Thunder",
+      "Vancouver Grizzlies" = "Memphis Grizzlies",
+      "Washington Bullets" = "Washington Wizards",
+      "New Orleans Hornets" = "New Orleans Pelicans",
+      "New Orleans/Oklahoma City Hornets" = "New Orleans Pelicans",
+      "Charlotte Bobcats" = "Charlotte Hornets"
+    ))
+    }
+  df <- df %>%
+      select(-c(Col18, Col23, Col28, Rank))
+    df <- df %>%
+  mutate(
+    Attendance = as.numeric(gsub(",", "", Attendance)),
+    Attendance_per_Game = as.numeric(gsub(",", "", Attendance_per_Game))
+  )
+  df <- df %>%
+      mutate(across(
+        .cols = -c(Team, Arena), 
+        .fns = ~ suppressWarnings(as.numeric(.))
+      ))
+  return(df)
+})
+
+team_advanced_rm_col_16_17 <- c("team_advanced_2005", "team_advanced_2006", "team_advanced_2007", "team_advanced_2008", "team_advanced_2009", "team_advanced_2010", "team_advanced_2011", "team_advanced_2012", "team_advanced_2013", "team_advanced_2014", "team_advanced_2015", "team_advanced_2016", "team_advanced_2017", "team_advanced_2018", "team_advanced_2019", "team_advanced_2020", "team_advanced_2021", "team_advanced_2022", "team_advanced_2023", "team_advanced_2024")
+
+for (name in team_advanced_rm_col_16_17) {
+  Seasons_Team_advanced[[name]] <- Seasons_Team_advanced[[name]][-c(16, 17), ]
+}
+```
+
+#### Seasons - Team shooting
+
+Basketball reference added Layup %FGA and total made layups to shooting data starting the 01-02 season.
+
+```{r, message=FALSE, warning=FALSE}
+Seasons_folder <- "/Users/bdekorodi/Desktop/Project/Project_data/Seasons"
+
+Seasons_Team_shooting_pre_2002 <- list()
+Seasons_Team_shooting_post_2002 <- list()
+
+col_names_Team_shooting_pre_2002 <- c("Rank", "Team", "Games_Played", "Minutes_Played", "FG%", "Average_FGA_distance", "Col7", "2P%FGA", "0_3%FGA", "3_10%FGA", "10_16%FGA", "16_3P%FGA", "3P%FGA", "Col14", "2P%", "0_3FG%", "3_10FG%", "10_16FG%","16_3PFG%", "3P%", "Col21", "2P%FGAst", "3P%FGAst", "Col24", "Dunks%FGA", "Made_dunks", "Col27", "Corner%3PA", "Corner3P%", "Col30", "Attempted_heaves", "Made_heaves")
+
+col_names_Team_shooting_post_2002 <- c("Rank", "Team", "Games_Played", "Minutes_Played", "FG%", "Average_FGA_distance", "Col7", "2P%FGA", "0_3%FGA", "3_10%FGA", "10_16%FGA", "16_3P%FGA", "3P%FGA", "Col14", "2P%", "0_3FG%", "3_10FG%", "10_16FG%", "16_3PFG%", "3P%", "Col21", "2P%FGAst", "3P%FGAst", "Col24", "Dunks%FGA", "Made_dunks", "Col27", "Layups%FGA", "Made_Layups", "Col33", "Corner%3PA", "Corner3P%", "Col30", "Attempted_heaves", "Made_heaves")
+
+for (year in 1997:2001) {
+  Seasons_file <- file.path(Seasons_folder, paste0("Season_", year, ".html"))
+  
+  tryCatch({
+    df <- read_html(Seasons_file) %>%
+      html_nodes(xpath = '//*[@id="shooting-team"]') %>%
+      html_table(fill = TRUE) %>%
+      .[[1]]
+    col_names <- df[1, ]
+    df <- df[-1, ]
+    col_names <- ifelse(is.na(col_names) | col_names == "", 
+                        paste0("Col", seq_along(col_names)), 
+                        col_names)
+    colnames(df) <- col_names
+    colnames(df) <- col_names_Team_shooting_pre_2002[seq_len(ncol(df))]
+    Seasons_Team_shooting_pre_2002[[paste0("team_shooting_", year)]] <- df
+  }, error = function(e) {
+    message(paste("Error processing year:", year))
+  })
+}
+
+for (year in 2002:2024) {
+  Seasons_file <- file.path(Seasons_folder, paste0("Season_", year, ".html"))
+  
+  tryCatch({
+    df <- read_html(Seasons_file) %>%
+      html_nodes(xpath = '//*[@id="shooting-team"]') %>%
+      html_table(fill = TRUE) %>%
+      .[[1]]
+    col_names <- df[1, ]
+    df <- df[-1, ]
+    col_names <- ifelse(is.na(col_names) | col_names == "", 
+                        paste0("Col", seq_along(col_names)), 
+                        col_names)
+    colnames(df) <- col_names
+    colnames(df) <- col_names_Team_shooting_post_2002[seq_len(ncol(df))]
+    df <- df[, !colnames(df) %in% c("Layups%FGA", "Made_Layups", "Col33")]
+    Seasons_Team_shooting_post_2002[[paste0("team_shooting_", year)]] <- df
+  })
+}
+
+Seasons_Team_shooting <- c(Seasons_Team_shooting_pre_2002, Seasons_Team_shooting_post_2002)
+
+names(Seasons_Team_shooting) <- paste0("team_shooting_", 1997:2024)
+
+Seasons_Team_shooting <- lapply(Seasons_Team_shooting, function(df) {{
+    df$Team <- str_remove(df$Team, "\\*$")
+    df$Team <- str_replace_all(df$Team, c(
+      "New Jersey Nets" = "Brooklyn Nets",
+      "Seattle SuperSonics" = "Oklahoma City Thunder",
+      "Vancouver Grizzlies" = "Memphis Grizzlies",
+      "Washington Bullets" = "Washington Wizards",
+      "New Orleans Hornets" = "New Orleans Pelicans",
+      "New Orleans/Oklahoma City Hornets" = "New Orleans Pelicans",
+      "Charlotte Bobcats" = "Charlotte Hornets"
+    ))
+  }
+  return(df)
+})
+team_shooting_rm_col_16_17 <- c("team_shooting_2005", "team_shooting_2006", "team_shooting_2007", "team_shooting_2008", "team_shooting_2009", "team_shooting_2010", "team_shooting_2011", "team_shooting_2012", "team_shooting_2013", "team_shooting_2014", "team_shooting_2015", "team_shooting_2016", "team_shooting_2017", "team_shooting_2018", "team_shooting_2019", "team_shooting_2020", "team_shooting_2021", "team_shooting_2022", "team_shooting_2023", "team_shooting_2024")
+
+for (name in team_shooting_rm_col_16_17) {
+  Seasons_Team_shooting[[name]] <- Seasons_Team_shooting[[name]][-c(16, 17), ]
+}
+
+rm(Seasons_Team_shooting_post_2002, Seasons_Team_shooting_pre_2002, df, col_names)
+```
+
+#### Seasons - Opponent shooting
+
+```{r, message=FALSE, warning=FALSE}
+Seasons_folder <- "/Users/bdekorodi/Desktop/Project/Project_data/Seasons"
+
+Seasons_Opp_shooting_pre_2002 <- list()
+Seasons_Opp_shooting_post_2002 <- list()
+
+col_names_Opp_shooting_pre_2002 <- c("Rank", "Team", "Games_Played", "Minutes_Played", "oppFG%", "oppAverage_FGA_distance", "Col7", "opp2P%FGA", "opp0_3%FGA", "opp3_10%FGA", "opp10_16%FGA", "opp16_3P%FGA", "opp3P%FGA", "Col14", "opp2P%","opp0_3FG%", "opp3_10FG%", "opp10_16FG%", "opp16_3PFG%", "opp3P%", "Col21", "opp2P%FGAst","opp3P%FGAst", "Col24", "oppDunks%FGA", "oppMade_dunks", "Col27", "oppCorner%3PA", "oppCorner3P%")
+
+col_names_Opp_shooting_post_2002 <- c("Rank", "Team", "Games_Played", "Minutes_Played", "oppFG%", "oppAverage_FGA_distance", "Col7", "opp2P%FGA", "opp0_3%FGA", "opp3_10%FGA", "opp10_16%FGA", "opp16_3P%FGA", "opp3P%FGA", "Col14", "opp2P%","opp0_3FG%", "opp3_10FG%", "opp10_16FG%", "opp16_3PFG%", "opp3P%", "Col21", "opp2P%FGAst","opp3P%FGAst", "Col24", "oppDunks%FGA", "oppMade_dunks", "Col27", "oppLayups%FGA", "oppMade_Layups", "Col30", "oppCorner%3PA", "oppCorner3P%")
+
+for (year in 1997:2001) {
+  Seasons_file <- file.path(Seasons_folder, paste0("Season_", year, ".html"))
+  
+  tryCatch({
+    df <- read_html(Seasons_file) %>%
+      html_nodes(xpath = '//*[@id="shooting-opponent"]') %>%
+      html_table(fill = TRUE) %>%
+      .[[1]]
+    col_names <- df[1, ]
+    df <- df[-1, ]
+    col_names <- ifelse(is.na(col_names) | col_names == "", 
+                        paste0("Col", seq_along(col_names)), 
+                        col_names)
+    colnames(df) <- col_names
+    colnames(df) <- col_names_Opp_shooting_pre_2002[seq_len(ncol(df))]
+    Seasons_Opp_shooting_pre_2002[[paste0("opp_shooting_", year)]] <- df
+  })
+}
+
+for (year in 2002:2024) {
+  Seasons_file <- file.path(Seasons_folder, paste0("Season_", year, ".html"))
+  
+  tryCatch({
+    df <- read_html(Seasons_file) %>%
+      html_nodes(xpath = '//*[@id="shooting-opponent"]') %>%
+      html_table(fill = TRUE) %>%
+      .[[1]]
+    col_names <- df[1, ]
+    df <- df[-1, ]
+    col_names <- ifelse(is.na(col_names) | col_names == "", 
+                        paste0("Col", seq_along(col_names)), 
+                        col_names)
+    colnames(df) <- col_names
+    colnames(df) <- col_names_Opp_shooting_post_2002[seq_len(ncol(df))]
+    df <- df[, !colnames(df) %in% c("oppLayups%FGA", "oppMade_Layups", "Col33")]
+    Seasons_Opp_shooting_post_2002[[paste0("opp_shooting_", year)]] <- df
+  })
+}
+
+Seasons_Opp_shooting <- c(Seasons_Opp_shooting_pre_2002, Seasons_Opp_shooting_post_2002)
+
+names(Seasons_Opp_shooting) <- paste0("opp_shooting_", 1997:2024)
+
+Seasons_Opp_shooting <- lapply(Seasons_Opp_shooting, function(df) {{
+    df$Team <- str_remove(df$Team, "\\*$")
+    df$Team <- str_replace_all(df$Team, c(
+      "New Jersey Nets" = "Brooklyn Nets",
+      "Seattle SuperSonics" = "Oklahoma City Thunder",
+      "Vancouver Grizzlies" = "Memphis Grizzlies",
+      "Washington Bullets" = "Washington Wizards",
+      "New Orleans Hornets" = "New Orleans Pelicans",
+      "New Orleans/Oklahoma City Hornets" = "New Orleans Pelicans",
+      "Charlotte Bobcats" = "Charlotte Hornets"
+    ))
+  }
+  return(df)
+})
+
+rm(Seasons_Opp_shooting_post_2002, Seasons_Opp_shooting_pre_2002, df, col_names)
+```
+
+#### Joining the datasets from each season by team name
+
+```{r, message=FALSE, warning=FALSE}
+clean_column_names <- function(lst) {
+  lapply(lst, function(df) {
+    colnames(df) <- make.names(colnames(df), unique = TRUE)
+    return(df)
+  })
+}
+
+Seasons_Team_per100poss <- clean_column_names(Seasons_Team_per100poss)
+Seasons_Opp_per100poss <- clean_column_names(Seasons_Opp_per100poss)
+Seasons_Team_advanced <- clean_column_names(Seasons_Team_advanced)
+Seasons_Team_shooting <- clean_column_names(Seasons_Team_shooting)
+Seasons_Opp_shooting <- clean_column_names(Seasons_Opp_shooting)
+
+Seasons <- list()
+
+for (year in 1997:2024) {
+  Seasons[[paste0("Season_", year)]] <- Seasons_Team_per100poss[[paste0("team_per100poss_", year)]] %>%
+    full_join(Seasons_Opp_per100poss[[paste0("opp_per100poss_", year)]], by = "Team") %>%
+    full_join(Seasons_Team_advanced[[paste0("team_advanced_", year)]], by = "Team") %>%
+    full_join(Seasons_Team_shooting[[paste0("team_shooting_", year)]], by = "Team") %>%
+    full_join(Seasons_Opp_shooting[[paste0("opp_shooting_", year)]], by = "Team")%>%
+    rename_with(~ gsub("X", "", .)) %>%
+    rename("Games_Played" = "Games_Played.x",
+           "Minutes_Played" = "Minutes_Played.x",
+           "FG%" = "FG..x",
+           "2P%" = "2P..x",
+           "3P%" = "3P..x",
+           "FT%" = "FT.",
+           "ORtg" = "ORtg.x",
+           "Year" = "Year.x",
+           "oppFG%" = "oppFG..x",
+           "opp2P%" = "opp2P..x",
+           "opp3P%" = "opp3P..x",
+           "oppFT%" = "oppFT.",
+           "oppORBr" = "oppORBr.x",
+           "DRtg" = "DRtg.x",
+           "%3PA" = ".3PA",
+           "TS%" = "TS.",
+           "eFG%" = "eFG.",
+           "TOV%" = "TOV.",
+           "ORB%" = "ORB.",
+           "oppeFG%" = "oppeFG.",
+           "oppTOV%" = "oppTOV.",
+           "DRB%" = "oppORBr.y",
+           "2P%FGA" = "2P.FGA",
+           "0_3%FGA" = "0_3.FGA",
+           "3_10%FGA" = "3_10.FGA",
+           "10_16%FGA" = "10_16.FGA",
+           "16_3P%FGA" = "16_3P.FGA",
+           "3P%FGA" = "3P.FGA",
+           "0_3FG%" = "0_3FG.",
+           "3_10FG%" = "3_10FG.",
+           "10_16FG%" = "10_16FG.",
+           "16_3PFG%" = "16_3PFG.",
+           "2P%FGAst" = "2P.FGAst",
+           "3P%FGAst" = "3P.FGAst",
+           "Dunks%FGA" = "Dunks.FGA",
+           "Corner%3PA" = "Corner.3PA",
+           "Corner3P%" = "Corner3P.",
+           "opp2P%FGA" = "opp2P.FGA",
+           "opp0_3%FGA" = "opp0_3.FGA",
+           "opp3_10%FGA" = "opp3_10.FGA",
+           "opp10_16%FGA" = "opp10_16.FGA",
+           "opp16_3P%FGA" = "opp16_3P.FGA",
+           "opp3P%FGA" = "opp3P.FGA",
+           "opp0_3FG%" = "opp0_3FG.",
+           "opp3_10FG%" = "opp3_10FG.",
+           "opp10_16FG%" = "opp10_16FG.",
+           "opp16_3PFG%" = "opp16_3PFG.",
+           "opp2P%FGAst" = "opp2P.FGAst",
+           "opp3P%FGAst" = "opp3P.FGAst",
+           "oppDunks%FGA" = "oppDunks.FGA",
+           "oppCorner%3PA" = "oppCorner.3PA",
+           "oppCorner3P%" = "oppCorner3P.") %>%
+    select(-contains("Games_Played.y"), 
+           -contains("Minutes_Played.y"),
+           -contains("Year.y"), 
+           -contains("Rank.x"),
+           -contains("ORtg.y"), 
+           -contains("DRtg.y"),
+           -contains("Col18"),
+           -contains("Col23"),
+           -contains("Col28"),
+           -contains("Rank.y"),
+           -contains("Games_Played.x.x"), 
+           -contains("Minutes_Played.x.x"),
+           -contains("FG..y"), 
+           -contains("Col7.x"), 
+           -contains("Col14.x"), 
+           -contains("2P..y"), 
+           -contains("3P..y"), 
+           -contains("Col21.x"), 
+           -contains("Col24.x"), 
+           -contains("Col27.x"), 
+           -contains("Col30"),
+           -contains("Games_Played.y.y"), 
+           -contains("Minutes_Played.y.y"), 
+           -contains("Rank"), 
+           -contains("oppFG..y"), 
+           -contains("Col7.y"), 
+           -contains("Col14.y"), 
+           -contains("Col21.y"), 
+           -contains("Col24.y"), 
+           -contains("Col27.y")) %>%
+    mutate(Attendance = gsub(",", "", Attendance),
+           Attendance_per_Game = gsub(",", "", Attendance_per_Game)) %>%
+    mutate(across(.cols = -c(Arena, Team), .fns = as.numeric))
+}
+```
+
+#### Playoffs Series - Four Factors
+
+```{r, message=FALSE, warning=FALSE}
+Playoffs_folder <- "/Users/bdekorodi/Desktop/Project/Project_data/Playoffs"
+Playoffs_FourFactors <- list()
+Playoff_series <- c("Finals", "ECF", "WCF", 
+                    "ECR2_1", "ECR2_2", "WCR2_1", "WCR2_2", 
+                    "ECR1_1", "ECR1_2", "ECR1_3", "ECR1_4", 
+                    "WCR1_1", "WCR1_2", "WCR1_3", "WCR1_4")
+
+for (year in 1997:2024) {
+  Playoffs_year_folder <- file.path(Playoffs_folder, as.character(year))
+  
+  for (file in Playoff_series) {
+    Playoffs_file <- file.path(Playoffs_year_folder, paste0(file, "_", year, ".html"))
+    
+    tryCatch({
+      raw_html <- readLines(Playoffs_file, warn = FALSE) %>%
+        paste(collapse = "\n") %>%
+        str_remove_all("<!--|-->")
+      Playoffs_FourFactors[[paste0(file, "_", year)]] <- read_html(raw_html) %>%
+        html_nodes(xpath = '//*[@id="four_factors"]') %>%
+        html_table(fill = TRUE) %>%
+        .[[1]]
+    }, error = function(e) {})
+  }
+}
+
+team_name_mapping <- c(
+  "CHI" = "Chicago Bulls",
+  "BOS" = "Boston Celtics",
+  "LAL" = "Los Angeles Lakers",
+  "MIA" = "Miami Heat",
+  "GSW" = "Golden State Warriors",
+  "CLE" = "Cleveland Cavaliers",
+  "SA" = "San Antonio Spurs",
+  "TOR" = "Toronto Raptors",
+  "NYK" = "New York Knicks",
+  "OKC" = "Oklahoma City Thunder",
+  "MIL" = "Milwaukee Bucks",
+  "HOU" = "Houston Rockets",
+  "PHI" = "Philadelphia 76ers",
+  "SAS" = "San Antonio Spurs",
+  "MIN" = "Minnesota Timberwolves",
+  "DET" = "Detroit Pistons",
+  "IND" = "Indiana Pacers",
+  "PHX" = "Phoenix Suns",
+  "ORL" = "Orlando Magic",
+  "DAL" = "Dallas Mavericks",
+  "POR" = "Portland Trail Blazers",
+  "SAC" = "Sacramento Kings",
+  "WAS" = "Washington Wizards",
+  "DEN" = "Denver Nuggets",
+  "UTA" = "Utah Jazz",
+  "CHA" = "Charlotte Hornets",
+  "ATL" = "Atlanta Hawks",
+  "LAC" = "Los Angeles Clippers",
+  "MEM" = "Memphis Grizzlies",
+  "NJN" = "Brooklyn Nets",
+  "SEA" = "Oklahoma City Thunder",
+  "VAN" = "Memphis Grizzlies",
+  "WSB" = "Washington Wizards",
+  "NOH" = "New Orleans Pelicans")
+
+Playoffs_FourFactors <- lapply(names(Playoffs_FourFactors), function(name) {
+  df <- Playoffs_FourFactors[[name]]
+      colnames(df)[1] <- "Result"
+      colnames(df)[2] <- "Series_Pace"
+      colnames(df)[3] <- "Series_eFGpct"
+      colnames(df)[4] <- "Series_TOVpct"
+      colnames(df)[5] <- "Series_ORBpct"
+      colnames(df)[6] <- "Series_FTperFGA"
+      colnames(df)[7] <- "Series_ORtg"
+      colnames(df)[8] <- "Series_PTSperG"
+      df <- df[-1, ]
+      df$Series_Pace <- as.numeric(df$Series_Pace)
+      df$Series_eFGpct <- as.numeric(df$Series_eFGpct)
+      df$`Series_TOVpct` <- as.numeric(df$Series_TOVpct)
+      df$`Series_ORBpct` <- as.numeric(df$Series_ORBpct)
+      df$Series_FTperFGA <- as.numeric(df$Series_FTperFGA)
+      df$Series_ORtg <- as.numeric(df$Series_ORtg)
+      df$Series_PTSperG <- as.numeric(df$Series_PTSperG)
+  df$Year <- as.integer(str_extract(name, "\\d{4}"))
+  df$Series <- str_extract(name, "^[^_]+")
+  df$Team <- str_sub(df$Result, 1, 3)
+  df$Team <- sapply(df$Team, function(team) team_name_mapping[team])
+  df$`Series_Victory_Margin` <- str_extract(df$Result, "\\((\\d+)-(\\d+)\\)") %>%
+      str_replace_all("[()]", "") %>%
+      str_split("-") %>%
+      sapply(function(x) as.integer(x[1]) - as.integer(x[2]))
+  df$`Series_Net_Rating` <- c(df$Series_ORtg[1] - df$Series_ORtg[2], df$Series_ORtg[2] -                                   df$Series_ORtg[1])
+  df$`Series_Win/Loss` <- c(1, 0)
+  df$`Series_Abs_Net_Rating` <- abs(df$`Series_Net_Rating`)
+  return(df)
+  }) %>% 
+setNames(names(Playoffs_FourFactors))
+```
+
+### Historical Probability of winning a series based on Net Rating
+
+```{r, message=FALSE, warning=FALSE}
+net_rating_summary <- do.call(rbind, Playoffs_FourFactors) %>%
+  filter(`Series_Abs_Net_Rating` != 0) %>%
+  mutate(
+    Net_Rating_Interval = cut(
+      `Series_Abs_Net_Rating`,
+      breaks = seq(0, max(`Series_Abs_Net_Rating`, na.rm = TRUE) + 1, by = 1),
+      right = FALSE,
+      include.lowest = TRUE
+    )
+  ) %>%
+  group_by(Net_Rating_Interval) %>%
+  summarise(
+    count = n() / 2,
+    win_probability = sum(`Series_Net_Rating` > 0 & `Series_Win/Loss` == 1) / (n() / 2),
+    loss_probability = sum(`Series_Net_Rating` < 0 & `Series_Win/Loss` == 1) / (n() / 2)
+  ) %>%
+  arrange(Net_Rating_Interval)
+
+ggplot(net_rating_summary, aes(x = Net_Rating_Interval, y = win_probability)) +
+  geom_point(color = "blue", size = 3) +
+  geom_line(group = 1, color = "blue", size = 1) +
+  labs(
+    title = "Historical Win Probability by Net Rating Interval",
+    x = "Net Rating",
+    y = "Win Probability"
+  ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+### Probability of Margins of Victory based on Net rating
+
+The aim being to create betting strategies, based on a prediction of the net rating of a playoff matchup, for
+
+1)  Which team will win the series,
+
+2)  In how many games the winner will clinch the series,
+
+we must convert our net rating predictions into probabilities of victory and margins of victory. For this I suggest we use a historical probability method, where we observe, over our sample of 420 playoff series, the likelihood of each series outcome and victory margin for each net rating.
+
+```{r, message=FALSE, warning=FALSE}
+net_rating_margin_victory <- do.call(rbind, Playoffs_FourFactors) %>%
+  filter(`Series_Abs_Net_Rating` != 0) %>%
+  mutate(
+    Net_Rating_Interval = cut(
+      `Series_Abs_Net_Rating`,
+      breaks = seq(0, max(`Series_Abs_Net_Rating`, na.rm = TRUE) + 1, by = 1),
+      right = FALSE,
+      include.lowest = TRUE
+    )
+  ) %>%
+  group_by(Net_Rating_Interval) %>%
+  summarise(
+    count = n() / 2,
+    probability_of_winning_in_7 = sum(`Series_Net_Rating` > 0 & `Series_Win/Loss` == 1 & `Series_Victory_Margin` == 1) / (n() / 2),
+    probability_of_winning_in_6 = sum(`Series_Net_Rating` > 0 & `Series_Win/Loss` == 1 & `Series_Victory_Margin` == 2) / (n() / 2),
+    probability_of_winning_in_5 = sum(`Series_Net_Rating` > 0 & `Series_Win/Loss` == 1 & `Series_Victory_Margin` == 3) / (n() / 2),
+    probability_of_winning_in_4 = sum(`Series_Net_Rating` > 0 & `Series_Win/Loss` == 1 & `Series_Victory_Margin` == 4) / (n() / 2),
+    probability_of_losing_in_7 = sum(`Series_Net_Rating` < 0 & `Series_Win/Loss` == 1 & `Series_Victory_Margin` == 1) / (n() / 2),
+    probability_of_losing_in_6 = sum(`Series_Net_Rating` < 0 & `Series_Win/Loss` == 1 & `Series_Victory_Margin` == 2) / (n() / 2),
+    probability_of_losing_in_5 = sum(`Series_Net_Rating` < 0 & `Series_Win/Loss` == 1 & `Series_Victory_Margin` == 3) / (n() / 2),
+    probability_of_losing_in_4 = sum(`Series_Net_Rating` < 0 & `Series_Win/Loss` == 1 & `Series_Victory_Margin` == 4) / (n() / 2)
+  ) %>%
+  arrange(Net_Rating_Interval)
+
+net_rating_margin_victory_long <- net_rating_margin_victory %>%
+  select(Net_Rating_Interval, 
+         probability_of_winning_in_7, 
+         probability_of_winning_in_6, 
+         probability_of_winning_in_5, 
+         probability_of_winning_in_4, 
+         probability_of_losing_in_7, 
+         probability_of_losing_in_6, 
+         probability_of_losing_in_5, 
+         probability_of_losing_in_4) %>%
+  pivot_longer(cols = -Net_Rating_Interval, 
+               names_to = "Outcome", 
+               values_to = "Probability")
+
+ggplot(net_rating_margin_victory_long, aes(x = Net_Rating_Interval, y = Probability, color = Outcome, group = Outcome)) +
+  geom_line(size = 1) +
+  geom_point(size = 1) +
+  labs(
+    title = "Probabilities of Winning/Losing in Different Series Lengths by Net Rating Interval",
+    x = "Net Rating Interval",
+    y = "Probability",
+    color = "Outcome"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "bottom"
+  )
+```
+
+#### Historical Average Victory Margin by Net Rating
+
+We start in 2004 because that is when the first round became best-of-seven series.
+
+```{r, message=FALSE, warning=FALSE}
+plot_data <- data.frame(Series_Net_Rating = numeric(0), Series_Victory_Margin = numeric(0), Year = integer(0), Series = character(0))
+for (year in 2004:2024) {
+  for (file in Playoff_series) {
+    df <- Playoffs_FourFactors[[paste0(file, "_", year)]]
+    
+    if (!is.null(df) && nrow(df) > 1) {
+      net_rating_value <- df$`Series_Net_Rating`[1]
+      victory_margin_value <- df$`Series_Victory_Margin`[1]
+      plot_data <- rbind(plot_data, data.frame(Series_Net_Rating = net_rating_value, 
+                                               Series_Victory_Margin = victory_margin_value, 
+                                               Year = year, 
+                                               Series = file))
+    }
+  }
+}
+plot_data <- plot_data %>%
+  mutate(Net_Rating_Binned = cut(Series_Net_Rating, 
+                                 breaks = seq(floor(min(Series_Net_Rating)), ceiling(max(Series_Net_Rating)), by = 1), 
+                                 include.lowest = TRUE, right = FALSE, 
+                                 labels = seq(floor(min(Series_Net_Rating)), ceiling(max(Series_Net_Rating)) - 1, by = 1)))
+avg_victory_margin <- plot_data %>%
+  group_by(Net_Rating_Binned) %>%
+  summarize(mean_victory_margin = mean(Series_Victory_Margin, na.rm = TRUE))
+
+ggplot(avg_victory_margin, aes(x = as.numeric(as.character(Net_Rating_Binned)), y = mean_victory_margin)) +
+  geom_line(color = "blue") +       
+  geom_point(color = "red") +   
+  geom_smooth() +
+  theme_minimal() +                   
+  labs(title = "Historical Average Victory Margin by Net Rating (1.0 Intervals)",
+       x = "Net Rating",
+       y = "Average Victory Margin") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+#### Historical Probability of each Victory Margin by Net rating
+
+```{r, message=FALSE, warning=FALSE}
+plot_data <- plot_data %>%
+  mutate(Net_Rating_interval = cut(Series_Net_Rating, breaks = seq(floor(min(Series_Net_Rating)), ceiling(max(Series_Net_Rating)), by = 1), 
+                                   include.lowest = TRUE, right = FALSE))
+
+probability_data <- plot_data %>%
+  group_by(Net_Rating_interval, Series_Victory_Margin) %>%
+  tally() %>%
+  ungroup()
+
+total_counts <- probability_data %>%
+  group_by(Net_Rating_interval) %>%
+  summarize(total_count = sum(n))
+
+probability_data <- probability_data %>%
+  left_join(total_counts, by = "Net_Rating_interval") %>%
+  mutate(probability = n / total_count)
+
+ggplot(probability_data, aes(x = Net_Rating_interval, y = probability, color = as.factor(Series_Victory_Margin))) +          
+  geom_point() +
+  geom_line(aes(group = Series_Victory_Margin)) +
+  theme_minimal() +                         
+  labs(title = "Historical probability of Victory Margin by Net Rating (1.0 intervals)",
+       x = "Net Rating Interval",
+       y = "Probability",
+       color = "Victory Margin") +
+  scale_color_manual(values = c("blue", "green", "yellow", "red")) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+#### Histogram of Net Rating
+
+To show statistical strength of samples predicting the victory margin based on net rating. Both extremities have very few samples, hence the nonsensical variability. We have a solid number of cases of Net Ratings in the range of about -1 to +12 for winners, it is fairly informative. Outside that range we just know that the probability of 1 game and 4 game margins are extremely high, but the variability is just randomness.
+
+```{r, message=FALSE, warning=FALSE}
+ggplot(plot_data, aes(x = Series_Net_Rating)) + 
+  geom_histogram(binwidth = 1, fill = "skyblue", color = "black", alpha = 0.7) + 
+  theme_minimal() +
+  labs(title = "Histogram of Net Rating (1.0 intervals)",
+       x = "Net Rating",
+       y = "Frequency") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+### Analysis
+
+Our aim is to predict
+
+1)  Who will likely win a playoff matchup
+
+2)  In how many games they will clinch the series
+
+We use playoff series net rating between two teams as an indicator to predict the likelihood of winning the series and in how many games.
+
+So how do we predict the net rating of a playoff series?
+
+-Difference in overall team quality (regular season Net Rating or SRS). This will obviously be a strong predictor of playoff series outcomes. It can also be used as a control variable to isolate the effect of matchup-related predictors
+
+-How often does the team with the best player in the series win? How important is a better supporting cast of role players? This will have to be part of an extension of the current study due to time constraints.
+
+-Playtype factors. Also will have to be part of an extension of the current study due to time constraints.
+
+-Clutch performance factors, particularly as a predictor of the winner of close series (close net ratings). Also will have to be part of an extension of the current study due to time constraints.
+
+Here we will use regular season team data from basketball reference, with a particular emphasis on shooting data and Four Factors.
+
+So the method is, for each playoff series, to go fetch the regular season data for the corresponding teams, and to make transformations on the regular season data so that we get the differentials between the teams' stats.
+
+```{r, message=FALSE, warning=FALSE}
+for (name in names(Playoffs_FourFactors)) {
+  year <- as.integer(str_extract(name, "\\d{4}"))
+  season_name <- paste0("Season_", year)
+  
+  if (season_name %in% names(Seasons)) {
+    Playoffs_FourFactors[[name]] <- merge(
+      Playoffs_FourFactors[[name]], 
+      Seasons[[season_name]], 
+      by = "Team", 
+      all.x = TRUE
+    )}
+}
+```
