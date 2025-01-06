@@ -62,12 +62,19 @@ Seasons_Team_per100poss <- lapply(Seasons_Team_per100poss, function(df) {
       "New Orleans/Oklahoma City Hornets" = "New Orleans Pelicans",
       "Charlotte Bobcats" = "Charlotte Hornets"
     ))
+    df <- df %>%
+    mutate(
+      Team = as.character(Team),
+      Year = as.integer(Year),
+      across(.cols = -c(Team, Year), .fns = as.numeric)
+      )
   }
   return(df)
+  
 })
-team_per100poss_rm_col_21 <- c("team_per100poss_2005", "team_per100poss_2006", "team_per100poss_2007", "team_per100poss_2008", "team_per100poss_2009", "team_per100poss_2010", "team_per100poss_2011", "team_per100poss_2012", "team_per100poss_2013", "team_per100poss_2014", "team_per100poss_2015", "team_per100poss_2016", "team_per100poss_2017", "team_per100poss_2018", "team_per100poss_2019", "team_per100poss_2020", "team_per100poss_2021", "team_per100poss_2022", "team_per100poss_2023", "team_per100poss_2024")
+team_per100poss_rm_row_21 <- c("team_per100poss_2005", "team_per100poss_2006", "team_per100poss_2007", "team_per100poss_2008", "team_per100poss_2009", "team_per100poss_2010", "team_per100poss_2011", "team_per100poss_2012", "team_per100poss_2013", "team_per100poss_2014", "team_per100poss_2015", "team_per100poss_2016", "team_per100poss_2017", "team_per100poss_2018", "team_per100poss_2019", "team_per100poss_2020", "team_per100poss_2021", "team_per100poss_2022", "team_per100poss_2023", "team_per100poss_2024")
 
-for (name in team_per100poss_rm_col_21) {
+for (name in team_per100poss_rm_row_21) {
   Seasons_Team_per100poss[[name]] <- Seasons_Team_per100poss[[name]][-c(21), ]
 }
 ```
@@ -102,6 +109,12 @@ Seasons_Opp_per100poss <- lapply(Seasons_Opp_per100poss, function(df) {
       "New Orleans/Oklahoma City Hornets" = "New Orleans Pelicans",
       "Charlotte Bobcats" = "Charlotte Hornets"
     ))
+    df <- df %>%
+    mutate(
+      Team = as.character(Team),
+      Year = as.integer(Year),
+      across(.cols = -c(Team, Year), .fns = as.numeric)
+      )
   }
   return(df)
 })
@@ -153,16 +166,17 @@ Seasons_Team_advanced <- lapply(Seasons_Team_advanced, function(df) {
     Attendance_per_Game = as.numeric(gsub(",", "", Attendance_per_Game))
   )
   df <- df %>%
-      mutate(across(
-        .cols = -c(Team, Arena), 
-        .fns = ~ suppressWarnings(as.numeric(.))
-      ))
+    mutate(
+      Team = as.character(Team),
+      Arena = as.character(Arena),
+      across(.cols = -c(Team, Arena), .fns = as.numeric)
+      )
   return(df)
 })
 
-team_advanced_rm_col_16_17 <- c("team_advanced_2005", "team_advanced_2006", "team_advanced_2007", "team_advanced_2008", "team_advanced_2009", "team_advanced_2010", "team_advanced_2011", "team_advanced_2012", "team_advanced_2013", "team_advanced_2014", "team_advanced_2015", "team_advanced_2016", "team_advanced_2017", "team_advanced_2018", "team_advanced_2019", "team_advanced_2020", "team_advanced_2021", "team_advanced_2022", "team_advanced_2023", "team_advanced_2024")
+team_advanced_rm_row_16_17 <- c("team_advanced_2005", "team_advanced_2006", "team_advanced_2007", "team_advanced_2008", "team_advanced_2009", "team_advanced_2010", "team_advanced_2011", "team_advanced_2012", "team_advanced_2013", "team_advanced_2014", "team_advanced_2015", "team_advanced_2016", "team_advanced_2017", "team_advanced_2018", "team_advanced_2019", "team_advanced_2020", "team_advanced_2021", "team_advanced_2022", "team_advanced_2023", "team_advanced_2024")
 
-for (name in team_advanced_rm_col_16_17) {
+for (name in team_advanced_rm_row_16_17) {
   Seasons_Team_advanced[[name]] <- Seasons_Team_advanced[[name]][-c(16, 17), ]
 }
 ```
@@ -226,7 +240,7 @@ Seasons_Team_shooting <- c(Seasons_Team_shooting_pre_2002, Seasons_Team_shooting
 
 names(Seasons_Team_shooting) <- paste0("team_shooting_", 1997:2024)
 
-Seasons_Team_shooting <- lapply(Seasons_Team_shooting, function(df) {{
+Seasons_Team_shooting <- lapply(Seasons_Team_shooting, function(df) {
     df$Team <- str_remove(df$Team, "\\*$")
     df$Team <- str_replace_all(df$Team, c(
       "New Jersey Nets" = "Brooklyn Nets",
@@ -237,12 +251,17 @@ Seasons_Team_shooting <- lapply(Seasons_Team_shooting, function(df) {{
       "New Orleans/Oklahoma City Hornets" = "New Orleans Pelicans",
       "Charlotte Bobcats" = "Charlotte Hornets"
     ))
-  }
+    df <- df[, !colnames(df) %in% c("Rank", "Col7", "Col14", "Col21", "Col24", "Col27", "Col30")]
+    df <- df %>%
+    mutate(
+      Team = as.character(Team),
+      across(.cols = -Team, .fns = as.numeric)
+    )
   return(df)
 })
-team_shooting_rm_col_16_17 <- c("team_shooting_2005", "team_shooting_2006", "team_shooting_2007", "team_shooting_2008", "team_shooting_2009", "team_shooting_2010", "team_shooting_2011", "team_shooting_2012", "team_shooting_2013", "team_shooting_2014", "team_shooting_2015", "team_shooting_2016", "team_shooting_2017", "team_shooting_2018", "team_shooting_2019", "team_shooting_2020", "team_shooting_2021", "team_shooting_2022", "team_shooting_2023", "team_shooting_2024")
+team_shooting_rm_row_16_17 <- c("team_shooting_2005", "team_shooting_2006", "team_shooting_2007", "team_shooting_2008", "team_shooting_2009", "team_shooting_2010", "team_shooting_2011", "team_shooting_2012", "team_shooting_2013", "team_shooting_2014", "team_shooting_2015", "team_shooting_2016", "team_shooting_2017", "team_shooting_2018", "team_shooting_2019", "team_shooting_2020", "team_shooting_2021", "team_shooting_2022", "team_shooting_2023", "team_shooting_2024")
 
-for (name in team_shooting_rm_col_16_17) {
+for (name in team_shooting_rm_row_16_17) {
   Seasons_Team_shooting[[name]] <- Seasons_Team_shooting[[name]][-c(16, 17), ]
 }
 
@@ -295,7 +314,7 @@ for (year in 2002:2024) {
                         col_names)
     colnames(df) <- col_names
     colnames(df) <- col_names_Opp_shooting_post_2002[seq_len(ncol(df))]
-    df <- df[, !colnames(df) %in% c("oppLayups%FGA", "oppMade_Layups", "Col33")]
+    df <- df[, !colnames(df) %in% c("oppLayups%FGA", "oppMade_Layups", "Col30", "Col33")]
     Seasons_Opp_shooting_post_2002[[paste0("opp_shooting_", year)]] <- df
   })
 }
@@ -304,7 +323,7 @@ Seasons_Opp_shooting <- c(Seasons_Opp_shooting_pre_2002, Seasons_Opp_shooting_po
 
 names(Seasons_Opp_shooting) <- paste0("opp_shooting_", 1997:2024)
 
-Seasons_Opp_shooting <- lapply(Seasons_Opp_shooting, function(df) {{
+Seasons_Opp_shooting <- lapply(Seasons_Opp_shooting, function(df) {
     df$Team <- str_remove(df$Team, "\\*$")
     df$Team <- str_replace_all(df$Team, c(
       "New Jersey Nets" = "Brooklyn Nets",
@@ -315,11 +334,20 @@ Seasons_Opp_shooting <- lapply(Seasons_Opp_shooting, function(df) {{
       "New Orleans/Oklahoma City Hornets" = "New Orleans Pelicans",
       "Charlotte Bobcats" = "Charlotte Hornets"
     ))
-  }
-  return(df)
+    df <- df[, !colnames(df) %in% c("Rank", "Col7", "Col14", "Col21", "Col24", "Col27")]
+    df <- df %>%
+    mutate(
+      Team = as.character(Team),
+      across(.cols = -Team, .fns = as.numeric)
+    )
+return(df)
 })
 
 rm(Seasons_Opp_shooting_post_2002, Seasons_Opp_shooting_pre_2002, df, col_names)
+```
+
+```{r}
+rm(col_names_Opp_per100poss, col_names_Opp_shooting_post_2002, col_names_Opp_shooting_pre_2002, col_names_Team_advanced, col_names_Team_per100poss, col_names_Team_shooting_post_2002, col_names_Team_shooting_pre_2002, name, team_advanced_rm_row_16_17, team_per100poss_rm_row_21, team_shooting_rm_row_16_17, year)
 ```
 
 #### Joining the datasets from each season by team name
