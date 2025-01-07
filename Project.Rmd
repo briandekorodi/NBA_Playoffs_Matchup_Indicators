@@ -490,6 +490,7 @@ team_name_mapping <- c(
   "DET" = "Detroit Pistons",
   "IND" = "Indiana Pacers",
   "PHX" = "Phoenix Suns",
+  "PHO" = "Phoenix Suns",
   "ORL" = "Orlando Magic",
   "DAL" = "Dallas Mavericks",
   "POR" = "Portland Trail Blazers",
@@ -541,14 +542,34 @@ Playoffs_FourFactors <- lapply(names(Playoffs_FourFactors), function(name) {
 setNames(names(Playoffs_FourFactors))
 ```
 
+```{r, message=FALSE, warning=FALSE}
+rm(col_names_Opp_per100poss, col_names_Opp_shooting_post_2002, col_names_Opp_shooting_pre_2002, col_names_Team_advanced, col_names_Team_per100poss, col_names_Team_shooting_post_2002, col_names_Team_shooting_pre_2002, name, team_advanced_rm_row_16_17, team_per100poss_rm_row_21, team_shooting_rm_row_16_17, year, team_name_mapping, file, all_team_names, Playoffs_file, Playoffs_folder, Playoffs_year_folder, raw_html, Seasons_file, Seasons_folder)
+```
+
 #### Joining regular season data to playoff series data
 
 ```{r, message=FALSE, warning=FALSE}
+Playoffs <- list()
 
+for (year in 1997:2024) {
+  for (file in Playoff_series) {
+    
+    playoff_teams <- unique(Playoffs_FourFactors[[paste0(file, "_", year)]][["Team"]])
+    
+    season_data_filtered <- Seasons[[paste0("Season_", year)]] %>%
+      filter(Team %in% playoff_teams)
+    
+    Playoffs[[paste0(file, "_", year)]] <- left_join(
+      Playoffs_FourFactors[[paste0(file, "_", year)]],
+      season_data_filtered,
+      by = c("Team", "Year")
+    )
+  }
+}
 ```
 
 ```{r, message=FALSE, warning=FALSE}
-rm(col_names_Opp_per100poss, col_names_Opp_shooting_post_2002, col_names_Opp_shooting_pre_2002, col_names_Team_advanced, col_names_Team_per100poss, col_names_Team_shooting_post_2002, col_names_Team_shooting_pre_2002, name, team_advanced_rm_row_16_17, team_per100poss_rm_row_21, team_shooting_rm_row_16_17, year, team_name_mapping, file, all_team_names, Playoff_series, Playoffs_file, Playoffs_folder, Playoffs_year_folder, raw_html, Seasons_file, Seasons_folder)
+rm(col_names_Opp_per100poss, col_names_Opp_shooting_post_2002, col_names_Opp_shooting_pre_2002, col_names_Team_advanced, col_names_Team_per100poss, col_names_Team_shooting_post_2002, col_names_Team_shooting_pre_2002, name, team_advanced_rm_row_16_17, team_per100poss_rm_row_21, team_shooting_rm_row_16_17, year, team_name_mapping, file, all_team_names, Playoffs_file, Playoffs_folder, Playoffs_year_folder, raw_html, Seasons_file, Seasons_folder, playoff_teams, season_data_filtered)
 ```
 
 ### Analysis
