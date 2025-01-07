@@ -30,12 +30,16 @@ library(purrr)
 
 ```
 
+```{r}
+Seasons_folder <- "/Users/bdekorodi/Desktop/Project/Project_data/Seasons"
+Playoffs_folder <- "/Users/bdekorodi/Desktop/Project/Project_data/Playoffs"
+```
+
 ### Extracting data
 
 #### Seasons - Team per 100 possessions
 
 ```{r, message=FALSE, warning=FALSE}
-Seasons_folder <- "/Users/bdekorodi/Desktop/Project/Project_data/Seasons"
 Seasons_Team_per100poss <- list()
 for (year in 1997:2024) {
   Seasons_file <- file.path(Seasons_folder, paste0("Season_", year, ".html"))
@@ -82,7 +86,6 @@ for (name in team_per100poss_rm_row_21) {
 #### Seasons - Opponent per 100 possessions
 
 ```{r, message=FALSE, warning=FALSE}
-Seasons_folder <- "/Users/bdekorodi/Desktop/Project/Project_data/Seasons"
 Seasons_Opp_per100poss <- list()
 for (year in 1997:2024) {
   Seasons_file <- file.path(Seasons_folder, paste0("Season_", year, ".html"))
@@ -123,7 +126,6 @@ Seasons_Opp_per100poss <- lapply(Seasons_Opp_per100poss, function(df) {
 #### Seasons - Team advanced
 
 ```{r, message=FALSE, warning=FALSE}
-Seasons_folder <- "/Users/bdekorodi/Desktop/Project/Project_data/Seasons"
 Seasons_Team_advanced <- list()
 
 for (year in 1997:2024) {
@@ -186,7 +188,6 @@ for (name in team_advanced_rm_row_16_17) {
 Basketball reference added Layup %FGA and total made layups to shooting data starting the 01-02 season.
 
 ```{r, message=FALSE, warning=FALSE}
-Seasons_folder <- "/Users/bdekorodi/Desktop/Project/Project_data/Seasons"
 
 Seasons_Team_shooting_pre_2002 <- list()
 Seasons_Team_shooting_post_2002 <- list()
@@ -271,7 +272,6 @@ rm(Seasons_Team_shooting_post_2002, Seasons_Team_shooting_pre_2002, df, col_name
 #### Seasons - Opponent shooting
 
 ```{r, message=FALSE, warning=FALSE}
-Seasons_folder <- "/Users/bdekorodi/Desktop/Project/Project_data/Seasons"
 
 Seasons_Opp_shooting_pre_2002 <- list()
 Seasons_Opp_shooting_post_2002 <- list()
@@ -447,7 +447,6 @@ for (year in 1997:2024) {
 #### Playoffs Series - Four Factors
 
 ```{r, message=FALSE, warning=FALSE}
-Playoffs_folder <- "/Users/bdekorodi/Desktop/Project/Project_data/Playoffs"
 Playoffs_FourFactors <- list()
 Playoff_series <- c("Finals", "ECF", "WCF", 
                     "ECR2_1", "ECR2_2", "WCR2_1", "WCR2_2", 
@@ -542,7 +541,13 @@ Playoffs_FourFactors <- lapply(names(Playoffs_FourFactors), function(name) {
 setNames(names(Playoffs_FourFactors))
 ```
 
-```{r}
+#### Joining regular season data to playoff series data
+
+```{r, message=FALSE, warning=FALSE}
+
+```
+
+```{r, message=FALSE, warning=FALSE}
 rm(col_names_Opp_per100poss, col_names_Opp_shooting_post_2002, col_names_Opp_shooting_pre_2002, col_names_Team_advanced, col_names_Team_per100poss, col_names_Team_shooting_post_2002, col_names_Team_shooting_pre_2002, name, team_advanced_rm_row_16_17, team_per100poss_rm_row_21, team_shooting_rm_row_16_17, year, team_name_mapping, file, all_team_names, Playoff_series, Playoffs_file, Playoffs_folder, Playoffs_year_folder, raw_html, Seasons_file, Seasons_folder)
 ```
 
@@ -569,18 +574,3 @@ So how do we predict the net rating of a playoff series?
 Here we will use regular season team data from basketball reference, with a particular emphasis on shooting data and Four Factors.
 
 So the method is, for each playoff series, to go fetch the regular season data for the corresponding teams, and to make transformations on the regular season data so that we get the differentials between the teams' stats.
-
-```{r, message=FALSE, warning=FALSE}
-for (name in names(Playoffs_FourFactors)) {
-  year <- as.integer(str_extract(name, "\\d{4}"))
-  season_name <- paste0("Season_", year)
-  
-  if (season_name %in% names(Seasons)) {
-    Playoffs_FourFactors[[name]] <- merge(
-      Playoffs_FourFactors[[name]], 
-      Seasons[[season_name]], 
-      by = "Team", 
-      all.x = TRUE
-    )}
-}
-```
