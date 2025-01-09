@@ -592,6 +592,35 @@ So how do we predict the net rating of a playoff series?
 
 -Clutch performance factors, particularly as a predictor of the winner of close series (close net ratings). Also will have to be part of an extension of the current study due to time constraints.
 
+-Matchup principal areas indicators. For example we might try to generate indicators of how the opponent's rim protection matches up against the offense. Comparing a defense's foul rate or block rate with an offense's rim FGA rate for example. Or even block rate with 3PA rate (a team who blocks more shots might be more focused on rim protection and thus have their bigs in the paint more, which might create an advantage for an opponent who shoots many threes or many midrangers
+
 Here we will use regular season team data from basketball reference, with a particular emphasis on shooting data and Four Factors.
 
 So the method is, for each playoff series, to go fetch the regular season data for the corresponding teams, and to make transformations on the regular season data so that we get the differentials between the teams' stats.
+
+```{r}
+team_stats <- c("FGMr", "FGAr", "FG%", "3PMr", "3PAr", "3P%", "2PMr", "2PAr", "2P%", "FTAr", "ORBr", "DRBr", "TRBr", "ASTr", "STLr", "TOVr", "PFr", "ORtg", "Average_age", "Wins", "Expected_wins", "MOV", "SRS", "NRtg", "Pace", "eFG%", "TOV%", "ORB%", "FT_per_FGA", "Attendance_per_game", "Average_FGA_distance", "2P%FGA", "0_3%FGA", "3_10%FGA",       "10_16%FGA", "16_3P%FGA", "3P%FGA", "0_3FG%", "3_10FG%", "10_16FG%", "16_3PFG%",            "2P%FGAst", "3P%FGAst", "Dunks%FGA", "Made_dunks", "Corner%3PA", "Corner3P%")
+opponent_stats <- c("oppFGMr", "oppFGAr", "oppFG%", "opp3PMr", "opp3PAr", "opp3P%", "opp2PMr", "opp2PAr", "opp2P%", "oppFTAr", "oppORBr", "oppDRBr", "oppTRBr", "oppASTr", "TOVr", "oppTOVr", "oppPFr", "DRtg", "Average_age", "Wins", "Expected_wins", "MOV", "SRS", "NRtg", "Pace", "oppeFG%", "oppTOV%", "DRB%", "oppFT_per_FGA", "Attendance_per_game", "oppAverage_FGA_distance", "opp2P%FGA", "opp0_3%FGA", "opp3_10%FGA",       "opp10_16%FGA", "opp16_3P%FGA", "opp3P%FGA", "opp0_3FG%", "opp3_10FG%", "opp10_16FG%", "opp16_3PFG%",      "opp2P%FGAst", "opp3P%FGAst", "oppDunks%FGA", "oppMade_dunks", "oppCorner%3PA", "oppCorner3P%")
+
+for (name in names(Playoffs)) {
+  if (!is.null(Playoffs[[name]]) && nrow(Playoffs[[name]]) == 2) {
+    
+    df <- Playoffs[[name]]
+    
+    for (i in seq_along(team_stats)) {
+      team_col <- team_stats[i]
+      opp_col <- opponent_stats[i]
+      new_col <- paste0("Diff_", team_col)
+      
+      if (team_col %in% names(df) && opp_col %in% names(df)) {
+
+        df[[new_col]] <- c(
+          df[[team_col]][1] - df[[opp_col]][2], 
+          df[[team_col]][2] - df[[opp_col]][1]   
+        )
+      }
+    }
+    Playoffs[[name]] <- df
+  }
+}
+```
