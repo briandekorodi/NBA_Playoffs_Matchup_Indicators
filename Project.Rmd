@@ -19,6 +19,8 @@ rm(list = ls())
 #install.packages("ggplot2")
 #install.packages("tidyr")
 #install.packages("tidyverse")
+#install.packages("caret")
+#install.packages("randomForest")
 library(stringr)
 library(dplyr)
 library(httr)
@@ -27,7 +29,8 @@ library(ggplot2)
 library(tidyr)
 library(tidyverse)
 library(purrr)
-
+library(caret)
+library(randomForest)
 ```
 
 ```{r}
@@ -499,14 +502,18 @@ team_name_mapping <- c(
   "DEN" = "Denver Nuggets",
   "UTA" = "Utah Jazz",
   "CHA" = "Charlotte Hornets",
+  "CHH" = "Charlotte Hornets",
+  "CHO" = "Charlotte Hornets",
   "ATL" = "Atlanta Hawks",
   "LAC" = "Los Angeles Clippers",
   "MEM" = "Memphis Grizzlies",
   "NJN" = "Brooklyn Nets",
+  "BRK" = "Brooklyn Nets",
   "SEA" = "Oklahoma City Thunder",
   "VAN" = "Memphis Grizzlies",
   "WSB" = "Washington Wizards",
-  "NOH" = "New Orleans Pelicans")
+  "NOH" = "New Orleans Pelicans",
+  "NOP" = "New Orleans Pelicans")
 
 Playoffs_FourFactors <- lapply(names(Playoffs_FourFactors), function(name) {
   df <- Playoffs_FourFactors[[name]]
@@ -603,8 +610,8 @@ First, we create differential that measure the difference between Team A's offen
 The weighted shooting differentials measure, for each shot location zone, 1) the differential in efficiency weighted by the proportion of the offense's shots that come from that zone (basically how important that zone is for the offense), 2) the differential in efficiency weighted by the proportion of the defense's shots defended that come from that zone (basically how important that zone is for the defense
 
 ```{r}
-team_stats <- c("FGMr", "FGAr", "FG%", "3PMr", "3PAr", "3P%", "2PMr", "2PAr", "2P%", "FTAr", "ORBr", "DRBr", "TRBr", "ASTr", "STLr", "BLKr", "TOVr", "PFr", "ORtg", "Average_age", "Wins", "Expected_wins", "MOV", "SRS", "NRtg", "Pace", "eFG%", "TOV%", "ORB%", "FT_per_FGA", "Attendance_per_game", "Average_FGA_distance", "2P%FGA", "0_3%FGA", "3_10%FGA",       "10_16%FGA", "16_3P%FGA", "3P%FGA", "0_3FG%", "3_10FG%", "10_16FG%", "16_3PFG%",            "2P%FGAst", "3P%FGAst", "Dunks%FGA", "Made_dunks", "Corner%3PA", "Corner3P%")
-opponent_stats <- c("oppFGMr", "oppFGAr", "oppFG%", "opp3PMr", "opp3PAr", "opp3P%", "opp2PMr", "opp2PAr", "opp2P%", "oppFTAr", "oppORBr", "oppDRBr", "oppTRBr", "oppASTr", "oppSTLr", "oppBLKr", "oppTOVr", "oppPFr", "DRtg", "Average_age", "Wins", "Expected_wins", "MOV", "SRS", "NRtg", "Pace", "oppeFG%", "oppTOV%", "DRB%", "oppFT_per_FGA", "Attendance_per_game", "oppAverage_FGA_distance", "opp2P%FGA", "opp0_3%FGA", "opp3_10%FGA", "opp10_16%FGA", "opp16_3P%FGA", "opp3P%FGA", "opp0_3FG%", "opp3_10FG%", "opp10_16FG%", "opp16_3PFG%",      "opp2P%FGAst", "opp3P%FGAst", "oppDunks%FGA", "oppMade_dunks", "oppCorner%3PA", "oppCorner3P%")
+team_stats <- c("ORtg", "FGMr", "FGAr", "FG%", "3PMr", "3PAr", "3P%", "2PMr", "2PAr", "2P%", "FTAr", "ORBr", "TRBr", "ASTr", "oppSTLr", "oppBLKr", "TOVr", "oppPFr", "Average_age", "Pace", "eFG%", "TOV%", "ORB%", "FT_per_FGA", "Attendance_per_game", "Average_FGA_distance", "2P%FGA", "0_3%FGA", "3_10%FGA", "10_16%FGA", "16_3P%FGA", "3P%FGA", "0_3FG%", "3_10FG%", "10_16FG%", "16_3PFG%", "2P%FGAst", "3P%FGAst", "Dunks%FGA", "Made_dunks", "Corner%3PA", "Corner3P%")
+opponent_stats <- c("DRtg", "oppFGMr", "oppFGAr", "oppFG%", "opp3PMr", "opp3PAr", "opp3P%", "opp2PMr", "opp2PAr", "opp2P%", "oppFTAr", "oppORBr", "oppTRBr", "oppASTr", "STLr", "BLKr", "oppTOVr", "PFr", "Average_age", "Pace", "oppeFG%", "oppTOV%", "DRB%", "oppFT_per_FGA", "Attendance_per_game", "oppAverage_FGA_distance", "opp2P%FGA", "opp0_3%FGA", "opp3_10%FGA", "opp10_16%FGA", "opp16_3P%FGA", "opp3P%FGA", "opp0_3FG%", "opp3_10FG%", "opp10_16FG%", "opp16_3PFG%", "opp2P%FGAst", "opp3P%FGAst", "oppDunks%FGA", "oppMade_dunks", "oppCorner%3PA", "oppCorner3P%")
 
 for (name in names(Playoffs)) {
   if (!is.null(Playoffs[[name]]) && nrow(Playoffs[[name]]) == 2) {
@@ -624,49 +631,115 @@ for (name in names(Playoffs)) {
         )
       }
     }
-    df$`W_Team_O_Diff_0_3FG%` <- c(
-        df[["Diff_0_3FG%"]][1] * df[["0_3%FGA"]][1],
-        df[["Diff_0_3FG%"]][2] * df[["0_3%FGA"]][2]
-      )
-    df$`W_Opp_D_Diff_0_3FG%` <- c(
-        df[["Diff_0_3FG%"]][1] * df[["opp0_3%FGA"]][2],
-        df[["Diff_0_3FG%"]][2] * df[["opp0_3%FGA"]][1]
-      )
-    df$`W_Team_O_Diff_3_10FG%` <- c(
-        df[["Diff_3_10FG%"]][1] * df[["3_10%FGA"]][1],
-        df[["Diff_3_10FG%"]][2] * df[["3_10%FGA"]][2]
-      )
-    df$`W_Opp_D_Diff_3_10FG%` <- c(
-        df[["Diff_3_10FG%"]][1] * df[["opp3_10%FGA"]][2],
-        df[["Diff_3_10FG%"]][2] * df[["opp3_10%FGA"]][1]
-      )
-    df$`W_Team_O_Diff_10_16FG%` <- c(
-        df[["Diff_10_16FG%"]][1] * df[["10_16%FGA"]][1],
-        df[["Diff_10_16FG%"]][2] * df[["10_16%FGA"]][2]
-      )
-    df$`W_Opp_D_Diff_10_16FG%` <- c(
-        df[["Diff_10_16FG%"]][1] * df[["opp10_16%FGA"]][2],
-        df[["Diff_10_16FG%"]][2] * df[["opp10_16%FGA"]][1]
-      )
-    df$`W_Team_O_Diff_16_3PFG%` <- c(
-        df[["Diff_16_3PFG%"]][1] * df[["16_3P%FGA"]][1],
-        df[["Diff_16_3PFG%"]][2] * df[["16_3P%FGA"]][2]
-      )
-    df$`W_Opp_D_Diff_16_3PFG%` <- c(
-        df[["Diff_16_3PFG%"]][1] * df[["opp16_3P%FGA"]][2],
-        df[["Diff_16_3PFG%"]][2] * df[["opp16_3P%FGA"]][1]
-      )
-    df$`W_Team_O_Diff_3P%` <- c(
-        df[["Diff_3P%"]][1] * df[["3P%FGA"]][1],
-        df[["Diff_3P%"]][2] * df[["3P%FGA"]][2]
-      )
-    df$`W_Opp_D_Diff_3P%` <- c(
-        df[["Diff_3P%"]][1] * df[["opp3P%FGA"]][2],
-        df[["Diff_3P%"]][2] * df[["opp3P%FGA"]][1]
-      )
     Playoffs[[name]] <- df
   }
 }
 ```
 
 Now that we have generated metrics that capture difference in overall team quality, difference in fundamentals, difference in shooting efficiency, and weighted differences in shooting efficiency, we want to create a learning model with Series Net Rating or Series Offensive Rating as the target variable.
+
+Careful, we want to control for overall team quality first. We might want to find out which team quality indicator best correlates historically with Series Net rating, and divide Series Net rating by it.
+
+```{r}
+Playoffs_combined <- do.call(rbind, Playoffs)
+```
+
+```{r}
+# Plot 1: Series eFG% vs eFG%
+ggplot(Playoffs_combined, aes(x = `eFG%`, y = Series_eFGpct)) +
+  geom_point() +
+  geom_smooth(method = "lm", color = "red") +
+  ggtitle("Series eFG% vs eFG%") +
+  xlab("Regular Season eFG%") +
+  ylab("Series eFG%")
+
+# Plot 2: Series TOV% vs TOV%
+ggplot(Playoffs_combined, aes(x = `TOV%`, y = Series_TOVpct)) +
+  geom_point() +
+  geom_smooth(method = "lm", color = "blue") +
+  ggtitle("Series TOV% vs TOV%") +
+  xlab("Regular Season TOV%") +
+  ylab("Series TOV%")
+
+# Plot 3: Series ORB% vs ORB%
+ggplot(Playoffs_combined, aes(x = `ORB%`, y = Series_ORBpct)) +
+  geom_point() +
+  geom_smooth(method = "lm", color = "green") +
+  ggtitle("Series ORB% vs ORB%") +
+  xlab("Regular Season ORB%") +
+  ylab("Series ORB%")
+
+# Plot 4: Series FT per FGA vs FT per FGA
+ggplot(Playoffs_combined, aes(x = `FT_per_FGA`, y = Series_FTperFGA)) +
+  geom_point() +
+  geom_smooth(method = "lm", color = "purple") +
+  ggtitle("Series FT/FGA vs FT/FGA") +
+  xlab("Regular Season FT per FGA") +
+  ylab("Series FT per FGA")
+
+```
+
+```{r}
+# Linear regression model
+model <- lm(ORtg ~ `eFG%` + `TOV%` + `ORB%` + FT_per_FGA, data = Playoffs_combined)
+
+# Display the summary of the model
+summary(model)
+```
+
+```{r}
+# Linear regression model
+model <- lm(Series_ORtg ~ `Series_eFGpct` + `Series_TOVpct` + `Series_ORBpct` + Series_FTperFGA, data = Playoffs_combined)
+
+# Display the summary of the model
+summary(model)
+```
+
+```{r}
+# Linear regression model
+model <- lm(Series_ORtg ~ `eFG%` + `TOV%` + `ORB%` + FT_per_FGA, data = Playoffs_combined)
+
+# Display the summary of the model
+summary(model)
+
+```
+
+Better offensive teams tend to perform better offensively in the playoffs. However overall quality explains much less of playoff results. Firstly the free throw effect. But we also get a signal that there must be some matchup-related explanation.
+
+```{r}
+
+Playoffs_combined <- Playoffs_combined %>%
+  select(-c(Result, Series_Pace, Series_eFGpct, Series_ORBpct, Series_TOVpct, Series_FTperFGA, Series_Abs_Net_Rating, Series_PTSperG, Series_Victory_Margin, Series_Net_Rating, `Series_Win/Loss`, Series_Abs_Net_Rating, Team, Wins, Losses, Expected_wins, Expected_Losses, MOV, SOS, SRS, NRtg, ORtg))
+
+Playoffs_combined <- na.omit(Playoffs_combined)
+
+# Set a seed for reproducibility
+set.seed(42)
+
+# Split data into training and testing sets
+split_index <- createDataPartition(Playoffs_combined$Series_ORtg, p = 0.8, list = FALSE)
+train_data <- Playoffs_combined[split_index, ]
+test_data <- Playoffs_combined[-split_index, ]
+
+# Define target and features for training
+x_train <- train_data %>% select(-Series_ORtg)
+y_train <- train_data$Series_ORtg
+
+# Train the random forest model
+rf_model <- randomForest(x_train, y_train, importance = TRUE, ntree = 500)
+
+# Ensure the test data contains the same columns as training
+x_test <- test_data[, colnames(x_train), drop = FALSE]
+y_test <- test_data$Series_ORtg
+
+# Make predictions
+predictions <- predict(rf_model, x_test)
+
+# Calculate RMSE
+rmse <- sqrt(mean((predictions - y_test)^2))
+cat("Root Mean Squared Error:", rmse, "\n")
+
+# Display variable importance
+print(importance(rf_model))
+varImpPlot(rf_model)
+```
