@@ -33,12 +33,24 @@ library(caret)
 library(randomForest)
 ```
 
+### Path names for data extraction
+
 ```{r}
 Seasons_folder <- "/Users/bdekorodi/Desktop/Project/Project_data/Seasons"
 Playoffs_folder <- "/Users/bdekorodi/Desktop/Project/Project_data/Playoffs"
 ```
 
 ### Extracting data
+
+Loops used to perform the same table extractions from the raw html code for each year.
+
+The columns are renamed.
+
+The team names are changed so that all seasons contain the same team names. For example, the Seattle Super Sonics changed owners in 2009 and the team was moved to Oklahoma, becoming the Oklahoma City Thunder. In the data, the name Seattle Super Sonics is changed to Oklahoma City Thunder for all years. Team names have no causality towards results so these operations simply homogenize the names and allow for successful joining of the data sets later on.
+
+The types of the columns are changed.
+
+A list of data frames is created for each extraction, containing the data sets for all the teams in each year.
 
 #### Seasons - Team per 100 possessions
 
@@ -188,7 +200,7 @@ for (name in team_advanced_rm_row_16_17) {
 
 #### Seasons - Team shooting
 
-Basketball reference added Layup %FGA and total made layups to shooting data starting the 01-02 season.
+Basketball reference added Layup %FGA and total made layups to shooting data starting the 01-02 season, so we must create two separate loops so that columns are not shifted sideways.
 
 ```{r, message=FALSE, warning=FALSE}
 
@@ -349,7 +361,7 @@ return(df)
 rm(Seasons_Opp_shooting_post_2002, Seasons_Opp_shooting_pre_2002, df, col_names)
 ```
 
-#### Joining the datasets from each season by team name
+#### Joining the data sets from each season by team name
 
 ```{r, message=FALSE, warning=FALSE}
 clean_column_names <- function(lst) {
@@ -581,33 +593,11 @@ rm(col_names_Opp_per100poss, col_names_Opp_shooting_post_2002, col_names_Opp_sho
 
 ### Analysis
 
-Our aim is to predict
-
-1)  Who will likely win a playoff matchup
-
-2)  In how many games they will clinch the series
-
-We use playoff series net rating between two teams as an indicator to predict the likelihood of winning the series and in how many games.
-
-So how do we predict the net rating of a playoff series?
-
--Difference in overall team quality (regular season Net Rating or SRS). This will obviously be a strong predictor of playoff series outcomes. It can also be used as a control variable to isolate the effect of matchup-related predictors
-
--How often does the team with the best player in the series win? How important is a better supporting cast of role players? This will have to be part of an extension of the current study due to time constraints.
-
--Playtype factors. Also will have to be part of an extension of the current study due to time constraints.
-
--Clutch performance factors, particularly as a predictor of the winner of close series (close net ratings). Also will have to be part of an extension of the current study due to time constraints.
-
--Matchup principal areas indicators. For example we might try to generate indicators of how the opponent's rim protection matches up against the offense. Comparing a defense's foul rate or block rate with an offense's rim FGA rate for example. Or even block rate with 3PA rate (a team who blocks more shots might be more focused on rim protection and thus have their bigs in the paint more, which might create an advantage for an opponent who shoots many threes or many midrangers
-
 Here we will use regular season team data from basketball reference, with a particular emphasis on shooting data and Four Factors.
 
 So the method is, for each playoff series, to go fetch the regular season data for the corresponding teams, and to make transformations on the regular season data so that we get the differentials between the teams' stats.
 
 First, we create differential that measure the difference between Team A's offensive/defensive performance against the league and Team B's defensive/offensive performance against the league, and vice versa.
-
-The weighted shooting differentials measure, for each shot location zone, 1) the differential in efficiency weighted by the proportion of the offense's shots that come from that zone (basically how important that zone is for the offense), 2) the differential in efficiency weighted by the proportion of the defense's shots defended that come from that zone (basically how important that zone is for the defense
 
 ```{r}
 team_stats <- c("ORtg", "FGMr", "FGAr", "FG%", "3PMr", "3PAr", "3P%", "2PMr", "2PAr", "2P%", "FTAr", "ORBr", "TRBr", "ASTr", "oppSTLr", "oppBLKr", "TOVr", "oppPFr", "Average_age", "Pace", "eFG%", "TOV%", "ORB%", "FT_per_FGA", "Attendance_per_game", "Average_FGA_distance", "2P%FGA", "0_3%FGA", "3_10%FGA", "10_16%FGA", "16_3P%FGA", "3P%FGA", "0_3FG%", "3_10FG%", "10_16FG%", "16_3PFG%", "2P%FGAst", "3P%FGAst", "Dunks%FGA", "Made_dunks", "Corner%3PA", "Corner3P%")
@@ -636,48 +626,24 @@ for (name in names(Playoffs)) {
 }
 ```
 
-Now that we have generated metrics that capture difference in overall team quality, difference in fundamentals, difference in shooting efficiency, and weighted differences in shooting efficiency, we want to create a learning model with Series Net Rating or Series Offensive Rating as the target variable.
+Now that we have generated metrics that capture difference in overall team quality, difference in fundamentals and difference in shooting efficiency, we want to create a learning model to predict Series Offensive Rating as the target variable.
 
-Careful, we want to control for overall team quality first. We might want to find out which team quality indicator best correlates historically with Series Net rating, and divide Series Net rating by it.
-
-```{r}
-Playoffs_combined <- do.call(rbind, Playoffs)
-```
+Creating dummy variables so that the series information is captured (Finals, Conference Finals, Round 2, Round 1).
 
 ```{r}
-# Plot 1: Series eFG% vs eFG%
-ggplot(Playoffs_combined, aes(x = `eFG%`, y = Series_eFGpct)) +
-  geom_point() +
-  geom_smooth(method = "lm", color = "red") +
-  ggtitle("Series eFG% vs eFG%") +
-  xlab("Regular Season eFG%") +
-  ylab("Series eFG%")
-
-# Plot 2: Series TOV% vs TOV%
-ggplot(Playoffs_combined, aes(x = `TOV%`, y = Series_TOVpct)) +
-  geom_point() +
-  geom_smooth(method = "lm", color = "blue") +
-  ggtitle("Series TOV% vs TOV%") +
-  xlab("Regular Season TOV%") +
-  ylab("Series TOV%")
-
-# Plot 3: Series ORB% vs ORB%
-ggplot(Playoffs_combined, aes(x = `ORB%`, y = Series_ORBpct)) +
-  geom_point() +
-  geom_smooth(method = "lm", color = "green") +
-  ggtitle("Series ORB% vs ORB%") +
-  xlab("Regular Season ORB%") +
-  ylab("Series ORB%")
-
-# Plot 4: Series FT per FGA vs FT per FGA
-ggplot(Playoffs_combined, aes(x = `FT_per_FGA`, y = Series_FTperFGA)) +
-  geom_point() +
-  geom_smooth(method = "lm", color = "purple") +
-  ggtitle("Series FT/FGA vs FT/FGA") +
-  xlab("Regular Season FT per FGA") +
-  ylab("Series FT per FGA")
-
+Playoffs_combined <- do.call(rbind, Playoffs) %>%
+  mutate(
+    Finals = ifelse(Series == "Finals", 1, 0),
+    WCF = ifelse(Series == "WCF", 1, 0),
+    ECF = ifelse(Series == "ECF", 1, 0),
+    ECR2 = ifelse(Series == "ECR2", 1, 0),
+    WCR2 = ifelse(Series == "WCR2", 1, 0),
+    ECR1 = ifelse(Series == "ECR1", 1, 0),
+    WCR1 = ifelse(Series == "WCR1", 1, 0)
+  )
 ```
+
+Showing that the Four Factors explain almost all of ORtg in the regular season and playoffs.
 
 ```{r}
 # Linear regression model
@@ -695,6 +661,8 @@ model <- lm(Series_ORtg ~ `Series_eFGpct` + `Series_TOVpct` + `Series_ORBpct` + 
 summary(model)
 ```
 
+Using regular seaosn four factors to predict playoffs ORtg as a benchmark model.
+
 ```{r}
 # Linear regression model
 model <- lm(Series_ORtg ~ `eFG%` + `TOV%` + `ORB%` + FT_per_FGA, data = Playoffs_combined)
@@ -706,10 +674,11 @@ summary(model)
 
 Better offensive teams tend to perform better offensively in the playoffs. However overall quality explains much less of playoff results. Firstly the free throw effect. But we also get a signal that there must be some matchup-related explanation.
 
-```{r}
+Run a random forest model with ORtg as target variable. We take out all series outcomes and rendundant variables of the data set, so that only regular season data is used to predict Series_ORtg.
 
+```{r}
 Playoffs_combined <- Playoffs_combined %>%
-  select(-c(Result, Series_Pace, Series_eFGpct, Series_ORBpct, Series_TOVpct, Series_FTperFGA, Series_Abs_Net_Rating, Series_PTSperG, Series_Victory_Margin, Series_Net_Rating, `Series_Win/Loss`, Series_Abs_Net_Rating, Team, Wins, Losses, Expected_wins, Expected_Losses, MOV, SOS, SRS, NRtg, ORtg))
+  select(-c(Result, Series_Pace, Series_eFGpct, Series_ORBpct, Series_TOVpct, Series_FTperFGA, Series_Abs_Net_Rating, Series_PTSperG, Series_Victory_Margin, Series_Net_Rating, `Series_Win/Loss`, Series_Abs_Net_Rating, Losses, Series)) 
 
 Playoffs_combined <- na.omit(Playoffs_combined)
 
@@ -741,5 +710,59 @@ cat("Root Mean Squared Error:", rmse, "\n")
 
 # Display variable importance
 print(importance(rf_model))
-varImpPlot(rf_model)
+varImpPlot(rf_model, sort = TRUE, n.var = 12)
+```
+
+```{r}
+Playoffs_combined <- do.call(rbind, Playoffs) %>%
+  mutate(
+    Finals = ifelse(Series == "Finals", 1, 0),
+    WCF = ifelse(Series == "WCF", 1, 0),
+    ECF = ifelse(Series == "ECF", 1, 0),
+    ECR2 = ifelse(Series == "ECR2", 1, 0),
+    WCR2 = ifelse(Series == "WCR2", 1, 0),
+    ECR1 = ifelse(Series == "ECR1", 1, 0),
+    WCR1 = ifelse(Series == "WCR1", 1, 0)
+  )
+```
+
+Run the same model but only taking Finals series, in an attempt to flatten out differences in team quality.
+
+```{r}
+Playoffs_combined <- Playoffs_combined %>%
+  select(-c(Result, Series_Pace, Series_eFGpct, Series_ORBpct, Series_TOVpct, Series_FTperFGA, Series_Abs_Net_Rating, Series_PTSperG, Series_Victory_Margin, Series_Net_Rating, `Series_Win/Loss`, Series_Abs_Net_Rating, Losses, Series)) %>%
+  filter(Finals == 1)
+
+
+Playoffs_combined <- na.omit(Playoffs_combined)
+
+# Set a seed for reproducibility
+set.seed(42)
+
+# Split data into training and testing sets
+split_index <- createDataPartition(Playoffs_combined$Series_ORtg, p = 0.8, list = FALSE)
+train_data <- Playoffs_combined[split_index, ]
+test_data <- Playoffs_combined[-split_index, ]
+
+# Define target and features for training
+x_train <- train_data %>% select(-Series_ORtg)
+y_train <- train_data$Series_ORtg
+
+# Train the random forest model
+rf_model <- randomForest(x_train, y_train, importance = TRUE, ntree = 500)
+
+# Ensure the test data contains the same columns as training
+x_test <- test_data[, colnames(x_train), drop = FALSE]
+y_test <- test_data$Series_ORtg
+
+# Make predictions
+predictions <- predict(rf_model, x_test)
+
+# Calculate RMSE
+rmse <- sqrt(mean((predictions - y_test)^2))
+cat("Root Mean Squared Error:", rmse, "\n")
+
+# Display variable importance
+print(importance(rf_model))
+varImpPlot(rf_model, sort = TRUE, n.var = 12)
 ```
