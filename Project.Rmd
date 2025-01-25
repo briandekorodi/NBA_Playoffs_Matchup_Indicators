@@ -677,43 +677,6 @@ Better offensive teams tend to perform better offensively in the playoffs. Howev
 Run a random forest model with ORtg as target variable. We take out all series outcomes and rendundant variables of the data set, so that only regular season data is used to predict Series_ORtg.
 
 ```{r}
-Playoffs_combined <- Playoffs_combined %>%
-  select(-c(Result, Series_Pace, Series_eFGpct, Series_ORBpct, Series_TOVpct, Series_FTperFGA, Series_Abs_Net_Rating, Series_PTSperG, Series_Victory_Margin, Series_Net_Rating, `Series_Win/Loss`, Series_Abs_Net_Rating, Losses, Series)) 
-
-Playoffs_combined <- na.omit(Playoffs_combined)
-
-# Set a seed for reproducibility
-set.seed(42)
-
-# Split data into training and testing sets
-split_index <- createDataPartition(Playoffs_combined$Series_ORtg, p = 0.8, list = FALSE)
-train_data <- Playoffs_combined[split_index, ]
-test_data <- Playoffs_combined[-split_index, ]
-
-# Define target and features for training
-x_train <- train_data %>% select(-Series_ORtg)
-y_train <- train_data$Series_ORtg
-
-# Train the random forest model
-rf_model <- randomForest(x_train, y_train, importance = TRUE, ntree = 500)
-
-# Ensure the test data contains the same columns as training
-x_test <- test_data[, colnames(x_train), drop = FALSE]
-y_test <- test_data$Series_ORtg
-
-# Make predictions
-predictions <- predict(rf_model, x_test)
-
-# Calculate RMSE
-rmse <- sqrt(mean((predictions - y_test)^2))
-cat("Root Mean Squared Error:", rmse, "\n")
-
-# Display variable importance
-print(importance(rf_model))
-varImpPlot(rf_model, sort = TRUE, n.var = 12)
-```
-
-```{r}
 Playoffs_combined <- do.call(rbind, Playoffs) %>%
   mutate(
     Finals = ifelse(Series == "Finals", 1, 0),
@@ -726,23 +689,19 @@ Playoffs_combined <- do.call(rbind, Playoffs) %>%
   )
 ```
 
-Run the same model but only taking Finals series, in an attempt to flatten out differences in team quality.
-
 ```{r}
-Playoffs_combined <- Playoffs_combined %>%
-  select(-c(Result, Series_Pace, Series_eFGpct, Series_ORBpct, Series_TOVpct, Series_FTperFGA, Series_Abs_Net_Rating, Series_PTSperG, Series_Victory_Margin, Series_Net_Rating, `Series_Win/Loss`, Series_Abs_Net_Rating, Losses, Series)) %>%
-  filter(Finals == 1)
+Playoffs_combined_rf <- Playoffs_combined %>%
+  select(-c(Result, Series_Pace, Series_eFGpct, Series_ORBpct, Series_TOVpct, Series_FTperFGA, Series_Abs_Net_Rating, Series_PTSperG, Series_Victory_Margin, Series_Net_Rating, `Series_Win/Loss`, Series_Abs_Net_Rating, Losses, Series)) 
 
-
-Playoffs_combined <- na.omit(Playoffs_combined)
+Playoffs_combined <- na.omit(Playoffs_combined_rf)
 
 # Set a seed for reproducibility
 set.seed(42)
 
 # Split data into training and testing sets
-split_index <- createDataPartition(Playoffs_combined$Series_ORtg, p = 0.8, list = FALSE)
-train_data <- Playoffs_combined[split_index, ]
-test_data <- Playoffs_combined[-split_index, ]
+split_index <- createDataPartition(Playoffs_combined_rf$Series_ORtg, p = 0.8, list = FALSE)
+train_data <- Playoffs_combined_rf[split_index, ]
+test_data <- Playoffs_combined_rf[-split_index, ]
 
 # Define target and features for training
 x_train <- train_data %>% select(-Series_ORtg)
@@ -765,4 +724,106 @@ cat("Root Mean Squared Error:", rmse, "\n")
 # Display variable importance
 print(importance(rf_model))
 varImpPlot(rf_model, sort = TRUE, n.var = 12)
+
+Playoffs_combined$Predicted_ORtg_rf <- predict(rf_model, newdata = Playoffs_combined_rf)
 ```
+
+Let's fit a linear learning model to the data. First we try without the differentials to have a benchmark model from the regular season data.
+
+```{r}
+Playoffs_combined_lm_bm <- Playoffs_combined %>%
+  select(-c(Result, Series_Pace, Series_eFGpct, Series_ORBpct, Series_TOVpct, Series_FTperFGA, Series_Abs_Net_Rating, Series_PTSperG, Series_Victory_Margin, Series_Net_Rating, `Series_Win/Loss`, Series_Abs_Net_Rating, Losses, Series, Arena, Team, 
+"Diff_FGMr",                 "Diff_FGAr",                 "Diff_FG%",                 
+"Diff_3PMr",                 "Diff_3PAr",                 "Diff_3P%",                 
+"Diff_2PMr",                 "Diff_2PAr",                 "Diff_2P%",                 
+"Diff_FTAr",                 "Diff_ORBr",                 "Diff_TRBr",                
+"Diff_ASTr",                 "Diff_oppSTLr",              "Diff_oppBLKr",             
+"Diff_TOVr",                 "Diff_oppPFr",               "Diff_Average_age",         
+"Diff_Pace",                 "Diff_eFG%",                 "Diff_TOV%",                
+"Diff_ORB%",                 "Diff_FT_per_FGA",           "Diff_Average_FGA_distance",
+"Diff_2P%FGA",               "Diff_0_3%FGA",              "Diff_3_10%FGA",            
+"Diff_10_16%FGA",            "Diff_16_3P%FGA",            "Diff_3P%FGA",              
+"Diff_0_3FG%",               "Diff_3_10FG%",              "Diff_10_16FG%",            
+"Diff_16_3PFG%",             "Diff_2P%FGAst",             "Diff_3P%FGAst",            
+"Diff_Dunks%FGA",            "Diff_Made_dunks",           "Diff_Corner%3PA",          
+"Diff_Corner3P%"))
+
+linear_model_bm <- lm(Series_ORtg ~ ., data = Playoffs_combined_lm_bm)
+
+# Summary of the model
+summary(linear_model_bm)
+
+# Diagnostics: Check residuals
+par(mfrow = c(2, 2)) # Set layout for plots
+plot(linear_model_bm)
+
+# Predict using the model
+Playoffs_combined$Predicted_ORtg_lm_bm <- predict(linear_model_bm, newdata = Playoffs_combined_lm_bm)
+```
+
+We see that we have gone from 0.36 R-squared (when using the Regular Season Four Factors) to 0.52 when adding per 100 possession, advanced and shooting stats for team and opponent. Now let's add in the differentials.
+
+```{r}
+Playoffs_combined_lm <- Playoffs_combined %>%
+  select(-c(Result, Series_Pace, Series_eFGpct, Series_ORBpct, Series_TOVpct, Series_FTperFGA, Series_Abs_Net_Rating, Series_PTSperG, Series_Victory_Margin, Series_Net_Rating, `Series_Win/Loss`, Series_Abs_Net_Rating, Losses, Series, Arena, Team))
+
+linear_model <- lm(Series_ORtg ~ ., data = Playoffs_combined_lm)
+
+# Summary of the model
+summary(linear_model)
+
+# Diagnostics: Check residuals
+par(mfrow = c(2, 2)) # Set layout for plots
+plot(linear_model)
+
+# Predict using the model
+Playoffs_combined$Predicted_ORtg_lm <- predict(linear_model, newdata = Playoffs_combined_lm)
+```
+
+Factoring the differentials increases the R-Squared to 0.57. If we look at the variables with high significance levels we get an interesting list.
+
+2P%
+
+oppFGMr
+
+Wins
+
+0_3FG%
+
+3_10FG%
+
+Dunks%FGA
+
+Corner%3PA
+
+Made_heaves
+
+opp0_3%FGA
+
+opp3_10%FGA
+
+opp10_16%FGA
+
+opp16_3P%FGA
+
+oppDunks%FGA
+
+Diff_2P%
+
+Diff_TRBr
+
+Diff_oppBLKr
+
+Diff_eFG%
+
+Diff_2P%FGA
+
+Diff_3P%FGA
+
+Diff_Dunks%FGA
+
+Diff_Corner%3PA
+
+Considering we are not taking injuries into account, a R-Squared of 0.57 with very high significance for our model seems pretty strong. We have also extracted a list of factors that provide interesting interpretations. An expansion of the Four Factors idea to include the transition from Regular Season to Playoffs.
+
+What we would have to do next is download the team stats tables from each series as well as a BPM or other player evaluation metric, and calculate the amount of "BPM lost", using the number of games played in the series.
