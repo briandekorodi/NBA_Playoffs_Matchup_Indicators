@@ -463,6 +463,7 @@ for (year in 1997:2024) {
 
 ```{r, message=FALSE, warning=FALSE}
 Playoffs_FourFactors <- list()
+Playoffs_Advanced <- list()
 Playoff_series <- c("Finals", "ECF", "WCF", 
                     "ECR2_1", "ECR2_2", "WCR2_1", "WCR2_2", 
                     "ECR1_1", "ECR1_2", "ECR1_3", "ECR1_4", 
@@ -478,13 +479,31 @@ for (year in 1997:2024) {
       raw_html <- readLines(Playoffs_file, warn = FALSE) %>%
         paste(collapse = "\n") %>%
         str_remove_all("<!--|-->")
+      
       Playoffs_FourFactors[[paste0(file, "_", year)]] <- read_html(raw_html) %>%
         html_nodes(xpath = '//*[@id="four_factors"]') %>%
         html_table(fill = TRUE) %>%
         .[[1]]
+      
+      advanced_tables <- read_html(raw_html) %>%
+        html_nodes(xpath = '//div[contains(@id, "advanced_sh")]/following-sibling::div') %>%
+        html_nodes("table") %>%
+        html_table(fill = TRUE)
+      
+      # Loop through the advanced tables and store them in the list
+      for (i in seq_along(advanced_tables)) {
+        table_name <- paste0(file, "_", year, "_Advanced_", i)
+        Playoffs_Advanced[[table_name]] <- advanced_tables[[i]]
+      }
     }, error = function(e) {})
   }
 }
+
+Playoffs_Advanced[["Finals_2024_Advanced_2"]] <- NULL
+Playoffs_Advanced[["Finals_2024_Advanced_4"]] <- NULL
+Playoffs_Advanced[["Finals_2023_Advanced_2"]] <- NULL
+Playoffs_Advanced[["Finals_2023_Advanced_4"]] <- NULL
+
 
 team_name_mapping <- c(
   "CHI" = "Chicago Bulls",
@@ -538,6 +557,10 @@ Playoffs_FourFactors <- lapply(names(Playoffs_FourFactors), function(name) {
       colnames(df)[7] <- "Series_ORtg"
       colnames(df)[8] <- "Series_PTSperG"
       df <- df[-1, ]
+      df$`Series_Games` <- str_extract(df$Result, "\\((\\d+)-(\\d+)\\)") %>%
+    str_replace_all("[()]", "") %>%
+    str_split("-") %>%
+    sapply(function(x) sum(as.integer(x)))
       df$Series_Pace <- as.numeric(df$Series_Pace)
       df$Series_eFGpct <- as.numeric(df$Series_eFGpct)
       df$`Series_TOVpct` <- as.numeric(df$Series_TOVpct)
@@ -559,10 +582,12 @@ Playoffs_FourFactors <- lapply(names(Playoffs_FourFactors), function(name) {
   return(df)
   }) %>% 
 setNames(names(Playoffs_FourFactors))
-```
 
-```{r, message=FALSE, warning=FALSE}
-rm(col_names_Opp_per100poss, col_names_Opp_shooting_post_2002, col_names_Opp_shooting_pre_2002, col_names_Team_advanced, col_names_Team_per100poss, col_names_Team_shooting_post_2002, col_names_Team_shooting_pre_2002, name, team_advanced_rm_row_16_17, team_per100poss_rm_row_21, team_shooting_rm_row_16_17, year, team_name_mapping, file, all_team_names, Playoffs_file, Playoffs_folder, Playoffs_year_folder, raw_html, Seasons_file, Seasons_folder)
+keep_columns_2_and_4 <- function(data_list) {
+  lapply(data_list, function(df) df[, c(2, 4), drop = FALSE])
+}
+Playoffs_Advanced <- keep_columns_2_and_4(Playoffs_Advanced)
+
 ```
 
 #### Joining regular season data to playoff series data
@@ -585,10 +610,6 @@ for (year in 1997:2024) {
     )
   }
 }
-```
-
-```{r, message=FALSE, warning=FALSE}
-rm(col_names_Opp_per100poss, col_names_Opp_shooting_post_2002, col_names_Opp_shooting_pre_2002, col_names_Team_advanced, col_names_Team_per100poss, col_names_Team_shooting_post_2002, col_names_Team_shooting_pre_2002, name, team_advanced_rm_row_16_17, team_per100poss_rm_row_21, team_shooting_rm_row_16_17, year, team_name_mapping, file, all_team_names, Playoffs_file, Playoffs_folder, Playoffs_year_folder, raw_html, Seasons_file, Seasons_folder, playoff_teams, season_data_filtered)
 ```
 
 ### Analysis
@@ -643,6 +664,29 @@ Playoffs_combined <- do.call(rbind, Playoffs) %>%
   )
 ```
 
+```{r}
+Playoffs_Advanced <- mapply(function(advanced_df, index) {
+
+  advanced_df$Team <- Playoffs_combined$Team[index]
+  advanced_df$Year <- Playoffs_combined$Year[index]
+  advanced_df$Series_Games <- Playoffs_combined$Series_Games[index]
+  
+  return(advanced_df)
+}, Playoffs_Advanced, seq_along(Playoffs_Advanced), SIMPLIFY = FALSE)
+
+Playoffs_Advanced <- lapply(names(Playoffs_Advanced), function(name) {
+  df <- Playoffs_Advanced[[name]]
+  colnames(df)[1] <- "Player"
+  colnames(df)[2] <- "GP"
+  df <- df[-1, ]
+  df$Series_Games <- as.numeric(df$Series_Games)
+  df$GP <- as.numeric(df$GP)
+  df$`Games_missed` <- df$Series_Games - df$GP
+ return(df)
+ }) %>% 
+setNames(names(Playoffs_Advanced))
+```
+
 Showing that the Four Factors explain almost all of ORtg in the regular season and playoffs.
 
 ```{r}
@@ -661,7 +705,7 @@ model <- lm(Series_ORtg ~ `Series_eFGpct` + `Series_TOVpct` + `Series_ORBpct` + 
 summary(model)
 ```
 
-Using regular seaosn four factors to predict playoffs ORtg as a benchmark model.
+Using regular season four factors to predict playoffs ORtg as a benchmark model.
 
 ```{r}
 # Linear regression model
@@ -675,19 +719,6 @@ summary(model)
 Better offensive teams tend to perform better offensively in the playoffs. However overall quality explains much less of playoff results. Firstly the free throw effect. But we also get a signal that there must be some matchup-related explanation.
 
 Run a random forest model with ORtg as target variable. We take out all series outcomes and rendundant variables of the data set, so that only regular season data is used to predict Series_ORtg.
-
-```{r}
-Playoffs_combined <- do.call(rbind, Playoffs) %>%
-  mutate(
-    Finals = ifelse(Series == "Finals", 1, 0),
-    WCF = ifelse(Series == "WCF", 1, 0),
-    ECF = ifelse(Series == "ECF", 1, 0),
-    ECR2 = ifelse(Series == "ECR2", 1, 0),
-    WCR2 = ifelse(Series == "WCR2", 1, 0),
-    ECR1 = ifelse(Series == "ECR1", 1, 0),
-    WCR1 = ifelse(Series == "WCR1", 1, 0)
-  )
-```
 
 ```{r}
 Playoffs_combined_rf <- Playoffs_combined %>%
@@ -827,3 +858,7 @@ Diff_Corner%3PA
 Considering we are not taking injuries into account, a R-Squared of 0.57 with very high significance for our model seems pretty strong. We have also extracted a list of factors that provide interesting interpretations. An expansion of the Four Factors idea to include the transition from Regular Season to Playoffs.
 
 What we would have to do next is download the team stats tables from each series as well as a BPM or other player evaluation metric, and calculate the amount of "BPM lost", using the number of games played in the series.
+
+If we download a BPM dataset for the teams we could join it to Playoffs_advanced and fill in the Games Played by zero for those who are not in both data frames.
+
+We must download the html pages of the teams that made the playoffs in each season, and then make a loop to extract the Advanced stats for the players (which contains BPM), then join that to Playoffs_advanced by filling in missing players with zero in GP.
