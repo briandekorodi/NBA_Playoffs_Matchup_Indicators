@@ -662,6 +662,7 @@ Playoffs_combined <- do.call(rbind, Playoffs) %>%
     ECR1 = ifelse(Series == "ECR1", 1, 0),
     WCR1 = ifelse(Series == "WCR1", 1, 0)
   )
+Playoffs_combined <- Playoffs_combined[-c(739, 740), ]
 ```
 
 ```{r}
@@ -722,9 +723,10 @@ Run a random forest model with ORtg as target variable. We take out all series o
 
 ```{r}
 Playoffs_combined_rf <- Playoffs_combined %>%
-  select(-c(Result, Series_Pace, Series_eFGpct, Series_ORBpct, Series_TOVpct, Series_FTperFGA, Series_Abs_Net_Rating, Series_PTSperG, Series_Victory_Margin, Series_Net_Rating, `Series_Win/Loss`, Series_Abs_Net_Rating, Losses, Series)) 
+  select(-c(Result, Series_Pace, Series_eFGpct, Series_ORBpct, Series_TOVpct, Series_FTperFGA, Series_Abs_Net_Rating, Series_PTSperG, Series_Victory_Margin, Series_Net_Rating, `Series_Win/Loss`, Series_Abs_Net_Rating, Losses, Series, Series_Games))  %>%
+  mutate(across(everything(), ~ replace_na(., 0)))
 
-Playoffs_combined <- na.omit(Playoffs_combined_rf)
+#Playoffs_combined_rf <- na.omit(Playoffs_combined_rf)
 
 # Set a seed for reproducibility
 set.seed(42)
@@ -756,7 +758,10 @@ cat("Root Mean Squared Error:", rmse, "\n")
 print(importance(rf_model))
 varImpPlot(rf_model, sort = TRUE, n.var = 12)
 
-Playoffs_combined$Predicted_ORtg_rf <- predict(rf_model, newdata = Playoffs_combined_rf)
+Playoffs_combined_rf$Predicted_ORtg_rf <- predict(rf_model, newdata = Playoffs_combined_rf)
+Playoffs_combined <- Playoffs_combined %>%
+  mutate(Predicted_ORtg_rf = Playoffs_combined_rf %>% pull(Predicted_ORtg_rf))
+
 ```
 
 Let's fit a linear learning model to the data. First we try without the differentials to have a benchmark model from the regular season data.
@@ -777,7 +782,7 @@ Playoffs_combined_lm_bm <- Playoffs_combined %>%
 "Diff_0_3FG%",               "Diff_3_10FG%",              "Diff_10_16FG%",            
 "Diff_16_3PFG%",             "Diff_2P%FGAst",             "Diff_3P%FGAst",            
 "Diff_Dunks%FGA",            "Diff_Made_dunks",           "Diff_Corner%3PA",          
-"Diff_Corner3P%"))
+"Diff_Corner3P%", Predicted_ORtg_rf, Series_Games))
 
 linear_model_bm <- lm(Series_ORtg ~ ., data = Playoffs_combined_lm_bm)
 
@@ -796,7 +801,7 @@ We see that we have gone from 0.36 R-squared (when using the Regular Season Four
 
 ```{r}
 Playoffs_combined_lm <- Playoffs_combined %>%
-  select(-c(Result, Series_Pace, Series_eFGpct, Series_ORBpct, Series_TOVpct, Series_FTperFGA, Series_Abs_Net_Rating, Series_PTSperG, Series_Victory_Margin, Series_Net_Rating, `Series_Win/Loss`, Series_Abs_Net_Rating, Losses, Series, Arena, Team))
+  select(-c(Result, Series_Pace, Series_eFGpct, Series_ORBpct, Series_TOVpct, Series_FTperFGA, Series_Abs_Net_Rating, Series_PTSperG, Series_Victory_Margin, Series_Net_Rating, `Series_Win/Loss`, Series_Abs_Net_Rating, Losses, Series, Arena, Team, Predicted_ORtg_rf, Predicted_ORtg_lm_bm, Series_Games))
 
 linear_model <- lm(Series_ORtg ~ ., data = Playoffs_combined_lm)
 
