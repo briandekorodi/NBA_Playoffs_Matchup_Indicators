@@ -862,6 +862,11 @@ Diff_Corner%3PA
 
 Considering we are not taking injuries into account, a R-Squared of 0.57 with very high significance for our model seems pretty strong. We have also extracted a list of factors that provide interesting interpretations. An expansion of the Four Factors idea to include the transition from Regular Season to Playoffs.
 
+```{r}
+Predictions <- Playoffs_combined %>%
+  select(Team, Year, Series, Result, Series_ORtg, Predicted_ORtg_rf, Predicted_ORtg_lm_bm, Predicted_ORtg_lm)
+```
+
 What we would have to do next is download the team stats tables from each series as well as a BPM or other player evaluation metric, and calculate the amount of "BPM lost", using the number of games played in the series.
 
 If we download a BPM dataset for the teams we could join it to Playoffs_advanced and fill in the Games Played by zero for those who are not in both data frames.
