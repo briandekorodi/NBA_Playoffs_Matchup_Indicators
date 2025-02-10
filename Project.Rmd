@@ -872,3 +872,15 @@ What we would have to do next is download the team stats tables from each series
 If we download a BPM dataset for the teams we could join it to Playoffs_advanced and fill in the Games Played by zero for those who are not in both data frames.
 
 We must download the html pages of the teams that made the playoffs in each season, and then make a loop to extract the Advanced stats for the players (which contains BPM), then join that to Playoffs_advanced by filling in missing players with zero in GP.
+
+So next steps?
+
+-change differentials to just include the specific opponent's data without calculating differentials, to see if this improves the predictive performance
+
+-download NBA.com datasets (possible through webscraping?)
+
+--\>playtype
+
+--\>lineups (eg Net Rating best lineups minimum x possessions, or perhaps just one table for each season with the 100 best lineups in the NBA or so and then find a way to join this by team name)
+
+-Player injuries with bball reference BPM (download a table for each playoff team for each season)
